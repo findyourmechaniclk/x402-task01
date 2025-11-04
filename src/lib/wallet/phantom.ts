@@ -212,8 +212,23 @@ export function onWalletAccountChange(callback: WalletEventCallback): void {
         return;
     }
 
-    const handler = (publicKey: PublicKey) => {
-        callback(publicKey);
+    const handler = (publicKey: unknown) => {
+        // Handle different parameter types that Phantom might pass
+        if (publicKey instanceof PublicKey) {
+            callback(publicKey);
+        } else if (typeof publicKey === 'string') {
+            // Convert string to PublicKey if needed
+            try {
+                callback(new PublicKey(publicKey));
+            } catch {
+                callback(null);
+            }
+        } else if (publicKey === null) {
+            callback(null);
+        } else {
+            // Fallback: pass null if we can't determine the public key
+            callback(null);
+        }
     };
 
     provider.on('accountChanged', handler);

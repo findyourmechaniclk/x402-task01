@@ -4,6 +4,7 @@
 import { useWallet } from '@/hooks/useWallet';
 import { formatBalance } from '@/lib/wallet/balance';
 import { formatWalletAddress } from '@/lib/wallet/phantom';
+import { getAddressExplorerUrl } from '@/lib/solana/connection';
 
 export function WalletInfo() {
     const { wallet, balance, isConnected } = useWallet();
@@ -13,8 +14,8 @@ export function WalletInfo() {
     }
 
     return (
-        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-            <h3 className="text-lg font-semibold mb-4 text-cyan-400">Wallet Information</h3>
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <h3 className="text-base font-semibold mb-3 text-cyan-400">Wallet Information</h3>
             
             <div className="space-y-3">
                 <div className="flex justify-between items-center">
@@ -45,11 +46,16 @@ export function WalletInfo() {
                     </span>
                 </div>
             </div>
-            
-            <div className="mt-4 pt-4 border-t border-white/10">
-                <p className="text-xs text-gray-500 text-center">
-                    Connected via Phantom Wallet
-                </p>
+            <div className="mt-4 flex items-center justify-between gap-2">
+                <a
+                    href={getAddressExplorerUrl(wallet.address!)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg text-white text-xs transition-colors"
+                >
+                    View on Explorer
+                </a>
+                <span className="text-xs text-gray-500">Connected via Phantom</span>
             </div>
         </div>
     );

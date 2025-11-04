@@ -1,12 +1,35 @@
 // src/components/WalletConnect/WalletButton.tsx
-'use client';
+"use client";
 
+import { useEffect, useRef, useState } from 'react';
 import { useWallet } from '@/hooks/useWallet';
 import { formatBalance } from '@/lib/wallet/balance';
 import { formatWalletAddress } from '@/lib/wallet/phantom';
+import { WalletInfo } from '@/components/WalletConnect/WalletInfo';
 
 export function WalletButton() {
-    const { wallet, balance, isConnected, connect, disconnect, isPhantomInstalled } = useWallet();
+    const {
+        wallet,
+        balance,
+        isConnected,
+        connect,
+        disconnect,
+        refreshBalance,
+        isPhantomInstalled,
+    } = useWallet();
+
+    const [open, setOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        function handleClickOutside(e: MouseEvent) {
+            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+                setOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     if (!isPhantomInstalled) {
         return (
@@ -14,7 +37,7 @@ export function WalletButton() {
                 href="https://phantom.app/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+                className="px-6 py-2 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white rounded-full font-semibold transition-all shadow-lg hover:shadow-xl"
             >
                 Install Phantom
             </a>
@@ -72,7 +95,7 @@ export function WalletButton() {
         return (
             <button
                 onClick={connect}
-                className="px-6 py-2 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-xl"
+                className="px-6 py-2 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white rounded-full font-semibold transition-all shadow-lg hover:shadow-xl"
             >
                 Connect Wallet
             </button>
@@ -80,26 +103,61 @@ export function WalletButton() {
     }
 
     return (
-        <div className="flex items-center gap-3">
-            <div className="flex flex-col items-end">
-                <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <span>{formatWalletAddress(wallet.address)}</span>
-                </div>
-                <div className="flex items-center gap-3 mt-1">
-                    <span className="text-xs text-gray-500">
-                        {formatBalance(balance.sol, 'SOL')} SOL
-                    </span>
-                    <span className="text-lg font-bold text-green-400">
-                        {formatBalance(balance.usdc, 'USDC')} USDC
-                    </span>
-                </div>
-            </div>
+        <div ref={containerRef} className="relative">
             <button
-                onClick={disconnect}
-                className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg text-sm font-medium transition-colors border border-red-600/30"
+                onClick={() => setOpen(v => !v)}
+                aria-expanded={open}
+                className="group bg-gradient-to-r from-purple-600 to-cyan-600 p-[1px] rounded-full transition-all shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-purple-400/40"
             >
-                Disconnect
+                <span className="flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1.5 text-white">
+                    <span className="inline-block w-2 h-2 rounded-full bg-green-400" />
+                    <span className="text-sm font-medium">{formatWalletAddress(wallet.address)}</span>
+                    <span className="mx-1 text-gray-500">•</span>
+                    <span className="text-xs text-gray-300">{formatBalance(balance.usdc, 'USDC')} USDC</span>
+                    <svg
+                        className="w-4 h-4 text-gray-300 transition-transform group-aria-expanded:rotate-180"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                </span>
             </button>
+
+            {open && (
+                <div className="absolute right-0 mt-2 w-80 bg-black/80 border border-white/10 rounded-xl shadow-xl backdrop-blur-lg p-4 z-50">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-cyan-400">Wallet</h3>
+                        <button
+                            onClick={() => setOpen(false)}
+                            className="text-gray-400 hover:text-white transition-colors"
+                            aria-label="Close"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                    <WalletInfo />
+                    <div className="mt-4 flex items-center justify-between gap-2">
+                        <button
+                            onClick={refreshBalance}
+                            className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg text-white text-sm transition-colors"
+                        >
+                            Refresh
+                        </button>
+                        <button
+                            onClick={() => {
+                                setOpen(false);
+                                disconnect();
+                            }}
+                            className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30 rounded-lg text-sm font-medium transition-colors"
+                        >
+                            Disconnect
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
