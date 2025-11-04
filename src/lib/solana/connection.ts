@@ -3,6 +3,12 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { SolanaNetwork } from '@/types';
 import { NETWORK_CONFIGS, USDC_MINT_ADDRESSES } from '@/config/constants';
 
+/**
+ * Solana connection helpers
+ *
+ * Centralize RPC URL selection, network detection, and explorer links.
+ * Also provides utilities for validating addresses and resolving the USDC mint.
+ */
 export function getCurrentNetwork(): SolanaNetwork {
     const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK as SolanaNetwork;
 
@@ -27,7 +33,7 @@ export function getRpcUrl(): string {
 
 export function createConnection(): Connection {
     const rpcUrl = getRpcUrl();
-
+    // Use confirmed commitment and a generous initial timeout for dev UX
     return new Connection(rpcUrl, {
         commitment: 'confirmed',
         confirmTransactionInitialTimeout: 60000,
@@ -52,6 +58,7 @@ export function getUsdcMintAddress(): PublicKey {
         throw new Error(`No USDC mint address configured for network: ${network}`);
     }
 
+    // Fallback to known mint addresses per network
     return new PublicKey(mintAddress);
 }
 
@@ -86,7 +93,9 @@ export function getExplorerUrl(signature: string): string {
     const network = getCurrentNetwork();
 
     if (network === 'localnet') {
-        return `http://localhost:3000/tx/${signature}`;
+        // Use Solana Explorer with a custom RPC pointing to local validator
+        const rpcUrl = getRpcUrl();
+        return `https://explorer.solana.com/tx/${signature}?cluster=custom&customUrl=${encodeURIComponent(rpcUrl)}`;
     }
 
     const cluster = network === 'mainnet-beta' ? '' : `?cluster=${network}`;
@@ -97,7 +106,9 @@ export function getAddressExplorerUrl(address: string): string {
     const network = getCurrentNetwork();
 
     if (network === 'localnet') {
-        return `http://localhost:3000/address/${address}`;
+        // Use Solana Explorer with a custom RPC pointing to local validator
+        const rpcUrl = getRpcUrl();
+        return `https://explorer.solana.com/address/${address}?cluster=custom&customUrl=${encodeURIComponent(rpcUrl)}`;
     }
 
     const cluster = network === 'mainnet-beta' ? '' : `?cluster=${network}`;

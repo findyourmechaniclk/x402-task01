@@ -1,4 +1,9 @@
 // src/lib/storage/localStorage.ts - Local storage utilities
+/**
+ * Local storage utilities to persist conversations, messages, selection state,
+ * and the connected wallet address. All operations are guarded to be safe
+ * during SSR and to avoid throwing when localStorage is unavailable.
+ */
 
 import { Conversation, Message, StorageData } from '@/types';
 import { STORAGE_KEYS } from '@/config/constants';
@@ -7,10 +12,18 @@ import { STORAGE_KEYS } from '@/config/constants';
 // Storage Helper Functions
 // ============================================
 
+/**
+ * Detects if code is running in a browser. Prevents SSR from accessing
+ * window/localStorage.
+ */
 function isClient(): boolean {
     return typeof window !== 'undefined';
 }
 
+/**
+ * Safely read a value from localStorage.
+ * Returns null when not in a browser or on error.
+ */
 function safeGetItem(key: string): string | null {
     if (!isClient()) return null;
 
@@ -22,6 +35,10 @@ function safeGetItem(key: string): string | null {
     }
 }
 
+/**
+ * Safely write a value to localStorage.
+ * Returns false when not in a browser or on error.
+ */
 function safeSetItem(key: string, value: string): boolean {
     if (!isClient()) return false;
 
@@ -34,6 +51,9 @@ function safeSetItem(key: string, value: string): boolean {
     }
 }
 
+/**
+ * Safely remove a key from localStorage. No-op on SSR.
+ */
 function safeRemoveItem(key: string): void {
     if (!isClient()) return;
 
@@ -48,6 +68,10 @@ function safeRemoveItem(key: string): void {
 // Conversation Management
 // ============================================
 
+/**
+ * Read all conversations and restore Date instances for conversation and
+ * message timestamps.
+ */
 export function getAllConversations(): Record<string, Conversation> {
     const data = safeGetItem(STORAGE_KEYS.CONVERSATIONS);
 
@@ -76,11 +100,17 @@ export function getAllConversations(): Record<string, Conversation> {
     }
 }
 
+/**
+ * Get a single conversation by id.
+ */
 export function getConversation(id: string): Conversation | null {
     const conversations = getAllConversations();
     return conversations[id] || null;
 }
 
+/**
+ * Upsert a conversation in storage and persist the full map.
+ */
 export function saveConversation(conversation: Conversation): boolean {
     const conversations = getAllConversations();
     conversations[conversation.id] = conversation;
@@ -91,6 +121,9 @@ export function saveConversation(conversation: Conversation): boolean {
     );
 }
 
+/**
+ * Delete a conversation by id and persist the updated map.
+ */
 export function deleteConversation(id: string): boolean {
     const conversations = getAllConversations();
     delete conversations[id];
@@ -110,6 +143,10 @@ export function clearAllConversations(): void {
 // Message Management
 // ============================================
 
+/**
+ * Append a message and update derived metadata (updatedAt, messageCount,
+ * totalCost). Returns true on successful persistence.
+ */
 export function addMessage(
     conversationId: string,
     message: Message
@@ -129,6 +166,9 @@ export function addMessage(
     return saveConversation(conversation);
 }
 
+/**
+ * Update a message in-place by id with partial fields and bump updatedAt.
+ */
 export function updateMessage(
     conversationId: string,
     messageId: string,
@@ -169,14 +209,23 @@ export function getMessages(conversationId: string): Message[] {
 // Current Conversation
 // ============================================
 
+/**
+ * Get the currently selected conversation id.
+ */
 export function getCurrentConversationId(): string | null {
     return safeGetItem(STORAGE_KEYS.CURRENT_CONVERSATION);
 }
 
+/**
+ * Set the currently selected conversation id.
+ */
 export function setCurrentConversationId(id: string): boolean {
     return safeSetItem(STORAGE_KEYS.CURRENT_CONVERSATION, id);
 }
 
+/**
+ * Resolve the currently selected conversation.
+ */
 export function getCurrentConversation(): Conversation | null {
     const id = getCurrentConversationId();
     return id ? getConversation(id) : null;
@@ -186,14 +235,23 @@ export function getCurrentConversation(): Conversation | null {
 // Wallet Address
 // ============================================
 
+/**
+ * Read the persisted wallet address.
+ */
 export function getStoredWalletAddress(): string | null {
     return safeGetItem(STORAGE_KEYS.WALLET_ADDRESS);
 }
 
+/**
+ * Persist the connected wallet address.
+ */
 export function setStoredWalletAddress(address: string): boolean {
     return safeSetItem(STORAGE_KEYS.WALLET_ADDRESS, address);
 }
 
+/**
+ * Remove the persisted wallet address.
+ */
 export function clearStoredWalletAddress(): void {
     safeRemoveItem(STORAGE_KEYS.WALLET_ADDRESS);
 }
@@ -202,6 +260,9 @@ export function clearStoredWalletAddress(): void {
 // Conversation Utilities
 // ============================================
 
+/**
+ * Create a new conversation scaffold for a wallet and model.
+ */
 export function createNewConversation(
     walletAddress: string,
     model: string,
@@ -224,6 +285,9 @@ export function createNewConversation(
     return conversation;
 }
 
+/**
+ * Generate a unique-ish message id using timestamp and random suffix.
+ */
 export function generateMessageId(): string {
     return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
@@ -232,6 +296,9 @@ export function generateMessageId(): string {
 // Search and Filter
 // ============================================
 
+/**
+ * Full-text search across conversation titles and message content.
+ */
 export function searchConversations(query: string): Conversation[] {
     const conversations = Object.values(getAllConversations());
 
@@ -254,6 +321,9 @@ export function searchConversations(query: string): Conversation[] {
     });
 }
 
+/**
+ * Filter conversations by wallet address.
+ */
 export function getConversationsByWallet(
     walletAddress: string
 ): Conversation[] {
@@ -264,6 +334,9 @@ export function getConversationsByWallet(
     );
 }
 
+/**
+ * Filter conversations by model id.
+ */
 export function getConversationsByModel(model: string): Conversation[] {
     const conversations = Object.values(getAllConversations());
 
@@ -274,16 +347,25 @@ export function getConversationsByModel(model: string): Conversation[] {
 // Statistics
 // ============================================
 
+/**
+ * Compute total message count across all conversations.
+ */
 export function getTotalMessageCount(): number {
     const conversations = Object.values(getAllConversations());
     return conversations.reduce((total, conv) => total + conv.messageCount, 0);
 }
 
+/**
+ * Sum total cost across all conversations.
+ */
 export function getTotalCost(): number {
     const conversations = Object.values(getAllConversations());
     return conversations.reduce((total, conv) => total + conv.totalCost, 0);
 }
 
+/**
+ * Aggregated storage stats for dashboards and diagnostics.
+ */
 export function getStorageStats(): {
     conversationCount: number;
     messageCount: number;
@@ -318,6 +400,9 @@ export function getStorageStats(): {
 // Export/Import
 // ============================================
 
+/**
+ * Export all persisted data as pretty JSON.
+ */
 export function exportAllData(): string {
     const data: StorageData = {
         conversations: getAllConversations(),
@@ -328,6 +413,9 @@ export function exportAllData(): string {
     return JSON.stringify(data, null, 2);
 }
 
+/**
+ * Import persisted data from JSON, validating structure before saving.
+ */
 export function importData(jsonData: string): boolean {
     try {
         const data = JSON.parse(jsonData) as StorageData;

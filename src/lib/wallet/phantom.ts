@@ -1,8 +1,19 @@
 // src/lib/wallet/phantom.ts
+/**
+ * Phantom wallet utilities: provider detection, connection helpers,
+ * transaction/message signing, event subscriptions, and display helpers.
+ * These functions wrap the Phantom provider to present a typed, safe
+ * surface to the rest of the app.
+ */
 import { PublicKey, Transaction } from '@solana/web3.js';
 import { SignMessageResponse } from '@/types';
 
 // Phantom wallet interface
+/**
+ * Minimal Phantom provider interface used by this app.
+ * Note: The actual provider may expose more fields, but we keep to
+ * the commonly used subset to maintain portability and clarity.
+ */
 interface PhantomProvider {
     isPhantom?: boolean;
     publicKey: PublicKey | null;
@@ -17,13 +28,19 @@ interface PhantomProvider {
 }
 
 // Extend window object
+/**
+ * Augment the window type so TypeScript recognizes `window.solana`.
+ */
 declare global {
     interface Window {
         solana?: PhantomProvider;
     }
 }
 
-// Get Phantom provider
+/**
+ * Resolve the Phantom provider from `window.solana` if available and
+ * verified as Phantom. Returns null on SSR or if not installed.
+ */
 export function getPhantomProvider(): PhantomProvider | null {
     if (typeof window === 'undefined') {
         return null;
@@ -39,12 +56,17 @@ export function getPhantomProvider(): PhantomProvider | null {
     return null;
 }
 
-// Check if Phantom is installed
+/**
+ * Convenience check for provider availability.
+ */
 export function isPhantomInstalled(): boolean {
     return getPhantomProvider() !== null;
 }
 
-// Connect wallet
+/**
+ * Initiate a user-driven connection flow. Returns the connected address
+ * on success or null if the user cancels or an error occurs.
+ */
 export async function connectWallet(): Promise<string | null> {
     const provider = getPhantomProvider();
 
@@ -65,7 +87,9 @@ export async function connectWallet(): Promise<string | null> {
     }
 }
 
-// Disconnect wallet
+/**
+ * Disconnect the wallet if connected. Errors are logged and swallowed.
+ */
 export async function disconnectWallet(): Promise<void> {
     const provider = getPhantomProvider();
 
@@ -81,19 +105,26 @@ export async function disconnectWallet(): Promise<void> {
     }
 }
 
-// Get connected public key
+/**
+ * Return the currently connected public key or null.
+ */
 export function getPublicKey(): PublicKey | null {
     const provider = getPhantomProvider();
     return provider?.publicKey || null;
 }
 
-// Check if wallet is connected
+/**
+ * Boolean convenience check for connection state.
+ */
 export function isWalletConnected(): boolean {
     const provider = getPhantomProvider();
     return provider?.isConnected || false;
 }
 
-// Sign transaction
+/**
+ * Ask Phantom to sign a single transaction. Throws when provider is
+ * unavailable or the wallet is not connected.
+ */
 export async function signTransaction<T extends Transaction>(
     transaction: T
 ): Promise<T> {
@@ -116,7 +147,10 @@ export async function signTransaction<T extends Transaction>(
     }
 }
 
-// Sign multiple transactions
+/**
+ * Ask Phantom to sign multiple transactions. Throws on missing provider
+ * or when the wallet is not connected.
+ */
 export async function signAllTransactions<T extends Transaction>(
     transactions: T[]
 ): Promise<T[]> {
@@ -139,7 +173,9 @@ export async function signAllTransactions<T extends Transaction>(
     }
 }
 
-// Sign message
+/**
+ * Request a message signature suitable for authentication flows.
+ */
 export async function signMessage(
     message: Uint8Array,
     display?: string
@@ -163,7 +199,10 @@ export async function signMessage(
     }
 }
 
-// Sign challenge for X402 protocol
+/**
+ * Convenience helper to sign a string challenge and return the signature
+ * as a hex string for use in X402 protocol flows.
+ */
 export async function signChallenge(challenge: string): Promise<string> {
     const messageBuffer = new TextEncoder().encode(challenge);
     const { signature } = await signMessage(messageBuffer);
@@ -174,7 +213,10 @@ export async function signChallenge(challenge: string): Promise<string> {
         .join('');
 }
 
-// Listen to wallet events
+/**
+ * Subscribe to wallet connect/disconnect/account-change events.
+ * Callers can update UI or state in response to provider events.
+ */
 export type WalletEventCallback = (publicKey: PublicKey | null) => void;
 
 export function onWalletConnect(callback: WalletEventCallback): void {
@@ -234,7 +276,10 @@ export function onWalletAccountChange(callback: WalletEventCallback): void {
     provider.on('accountChanged', handler);
 }
 
-// Remove event listeners
+/**
+ * Remove event listeners. Phantom handles internal listener cleanup on
+ * disconnect; this is provided as a semantic placeholder.
+ */
 export function offWalletEvents(): void {
     const provider = getPhantomProvider();
 
@@ -246,7 +291,10 @@ export function offWalletEvents(): void {
     // Provider will clean up on disconnect
 }
 
-// Auto-connect if previously connected
+/**
+ * Attempt a trusted auto-connect (no prompt) if the user allowed it
+ * previously. Returns address or null.
+ */
 export async function autoConnect(): Promise<string | null> {
     const provider = getPhantomProvider();
 
@@ -263,7 +311,9 @@ export async function autoConnect(): Promise<string | null> {
     }
 }
 
-// Format wallet address for display
+/**
+ * Shorten a wallet address for UI display, e.g. `4Jk9...2hXq`.
+ */
 export function formatWalletAddress(address: string, chars = 4): string {
     if (!address || address.length < chars * 2) {
         return address;

@@ -2,15 +2,24 @@
 import Link from 'next/link';
 import { WalletButton } from '@/components/WalletConnect/WalletButton';
 
+/**
+ * Home page (marketing landing).
+ *
+ * Contains:
+ * - Fixed header with brand, navigation, and wallet status/actions.
+ * - Main content with hero, features, supported models, and pricing.
+ * - Simple footer.
+ *
+ * Styling relies on Tailwind CSS v4 utilities.
+ */
 export default function Home() {
   return (
-    // Main container with dark theme styling
     <div className="min-h-screen bg-black text-white">
-      {/* ===== HEADER SECTION ===== */}
+      {/* Top navigation bar with brand, primary nav, and wallet actions */}
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-gray-800 bg-black/60 backdrop-blur-xl">
-        {/* Navigation container with responsive layout */}
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
+            {/* Brand mark */}
             <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-cyan-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">S</span>
             </div>
@@ -19,6 +28,7 @@ export default function Home() {
             </h1>
           </div>
 
+          {/* Primary navigation (hidden on small screens) */}
           <nav className="hidden md:flex items-center gap-6">
             <Link href="#features" className="text-gray-400 hover:text-white transition-colors">
               Features
@@ -31,6 +41,7 @@ export default function Home() {
             </Link>
           </nav>
 
+          {/* Wallet status/actions and CTA */}
           <div className="flex items-center gap-4">
             <WalletButton />
             <Link
@@ -43,11 +54,10 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ===== MAIN CONTENT SECTION ===== */}
+      {/* Main content sections */}
       <main className="pt-32 pb-20 px-6">
-        {/* Main content container with max width constraint */}
         <div className="container mx-auto max-w-6xl">
-          {/* ===== HERO SECTION ===== */}
+          {/* Hero section */}
           <div className="text-center mb-20">
             <div className="inline-block mb-4 px-4 py-2 bg-cyan-400/10 border border-cyan-400/20 rounded-full text-cyan-400 text-sm font-medium">
               Powered by X402 Protocol on Solana
@@ -66,6 +76,7 @@ export default function Home() {
               Pay per request with USDC. No subscriptions, no commitments.
             </p>
 
+            {/* Primary CTAs */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href="/chat"
@@ -82,7 +93,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* ===== FEATURES SECTION ===== */}
+          {/* Feature highlights */}
           <section id="features" className="mb-20">
             <h2 className="text-3xl font-bold text-center mb-12">
               Experience AI Pro with instant crypto payments
@@ -127,7 +138,7 @@ export default function Home() {
             </div>
           </section>
 
-          {/* ===== AI MODELS SECTION ===== */}
+          {/* Supported AI models */}
           <section id="models" className="mb-20">
             <h2 className="text-3xl font-bold text-center mb-4">
               This platform supports multiple AI models
@@ -152,7 +163,7 @@ export default function Home() {
             </div>
           </section>
 
-          {/* ===== PRICING SECTION ===== */}
+          {/* Pricing cards */}
           <section id="pricing" className="mb-20">
             <h2 className="text-3xl font-bold text-center mb-4">
               Simple, <span className="text-cyan-400">pay-per-use</span> pricing
@@ -200,7 +211,7 @@ export default function Home() {
         </div>
       </main>
 
-      {/* ===== FOOTER SECTION ===== */}
+      {/* Simple footer with site attribution */}
       <footer className="border-t border-gray-800 py-8">
         <div className="container mx-auto px-6 text-center text-gray-500 text-sm">
           <p>© {new Date().getFullYear()} Solana X402 GPT. Powered by X402 Protocol on Solana.</p>

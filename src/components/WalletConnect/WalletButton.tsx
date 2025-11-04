@@ -7,6 +7,11 @@ import { formatBalance } from '@/lib/wallet/balance';
 import { formatWalletAddress } from '@/lib/wallet/phantom';
 import { WalletInfo } from '@/components/WalletConnect/WalletInfo';
 
+/**
+ * WalletButton
+ * Displays connect/disconnect actions and a wallet dropdown.
+ * Manages click-outside closing and shows SOL/USDC balances.
+ */
 export function WalletButton() {
     const {
         wallet,
@@ -18,9 +23,11 @@ export function WalletButton() {
         isPhantomInstalled,
     } = useWallet();
 
+    // Dropdown visibility state and container ref for click-outside detection
     const [open, setOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement | null>(null);
 
+    // Close dropdown when clicking outside the component
     useEffect(() => {
         function handleClickOutside(e: MouseEvent) {
             if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -31,6 +38,7 @@ export function WalletButton() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Show install prompt when Phantom is not available
     if (!isPhantomInstalled) {
         return (
             <a
@@ -44,6 +52,7 @@ export function WalletButton() {
         );
     }
 
+    // Loading state: wallet connection in progress
     if (wallet.loading) {
         return (
             <button
@@ -77,6 +86,7 @@ export function WalletButton() {
         );
     }
 
+    // Error state: allow retrying the connection
     if (wallet.error) {
         return (
             <div className="flex flex-col items-end gap-2">
@@ -91,6 +101,7 @@ export function WalletButton() {
         );
     }
 
+    // Not connected: render primary Connect Wallet button
     if (!isConnected || !wallet.address) {
         return (
             <button
@@ -104,11 +115,13 @@ export function WalletButton() {
 
     return (
         <div ref={containerRef} className="relative">
+            {/* Connected state: compact button toggles dropdown */}
             <button
                 onClick={() => setOpen(v => !v)}
                 aria-expanded={open}
                 className="group bg-gradient-to-r from-purple-600 to-cyan-600 p-[1px] rounded-full transition-all shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-purple-400/40"
             >
+                {/* Inner capsule with subtle backdrop blur for contrast */}
                 <span className="flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1.5 text-white">
                     <span className="inline-block w-2 h-2 rounded-full bg-green-400" />
                     <span className="text-sm font-medium">{formatWalletAddress(wallet.address)}</span>
@@ -126,8 +139,9 @@ export function WalletButton() {
                 </span>
             </button>
 
+            {/* Dropdown panel: translucent tint + backdrop blur for frosted look */}
             {open && (
-                <div className="absolute right-0 mt-2 w-80 bg-black/80 border border-white/10 rounded-xl shadow-xl backdrop-blur-lg p-4 z-50">
+                < div className="absolute right-0 mt-2 w-80 bg-slate-950/80 border border-white/10 rounded-xl shadow-xl backdrop-blur-lg p-4 z-50">
                     <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-semibold text-cyan-400">Wallet</h3>
                         <button
@@ -157,7 +171,8 @@ export function WalletButton() {
                         </button>
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }

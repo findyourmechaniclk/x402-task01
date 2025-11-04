@@ -20,7 +20,18 @@ import {
     clearStoredWalletAddress,
 } from '@/lib/storage/localStorage';
 
+/**
+ * useWallet
+ *
+ * React hook that manages Phantom wallet connection state and balances.
+ * Responsibilities:
+ * - Connect/Disconnect via Phantom provider
+ * - Auto-connect if previously trusted
+ * - Subscribe to connect/disconnect/accountChanged events
+ * - Fetch and refresh SOL/USDC balances for the current address
+ */
 export function useWallet() {
+    // Wallet connection state (address, connected, loading, error)
     const [wallet, setWallet] = useState<WalletState>({
         address: null,
         connected: false,
@@ -28,14 +39,20 @@ export function useWallet() {
         error: null,
     });
 
+    // Wallet balances and last updated timestamp
     const [balance, setBalance] = useState<WalletBalance>({
         sol: 0,
         usdc: 0,
         lastUpdated: new Date(),
     });
 
+    // Indicates when a balance refresh is in progress
     const [balanceLoading, setBalanceLoading] = useState(false);
 
+    /**
+     * Fetch latest balances for the given address and update state.
+     * Uses dynamic mint decimals for USDC.
+     */
     const updateBalance = useCallback(async (address: string) => {
         setBalanceLoading(true);
 
@@ -54,6 +71,9 @@ export function useWallet() {
         }
     }, []);
 
+    /**
+     * Connect to Phantom. On success, set wallet state and fetch balances.
+     */
     const connect = useCallback(async () => {
         if (!isPhantomInstalled()) {
             setWallet(prev => ({
@@ -98,6 +118,9 @@ export function useWallet() {
         }
     }, [updateBalance]);
 
+    /**
+     * Disconnect from Phantom and clear wallet/balance state.
+     */
     const disconnect = useCallback(async () => {
         try {
             await disconnectWallet();
@@ -118,12 +141,19 @@ export function useWallet() {
         }
     }, []);
 
+    /**
+     * Manually refresh balances for the current wallet address.
+     */
     const refreshBalance = useCallback(async () => {
         if (wallet.address) {
             await updateBalance(wallet.address);
         }
     }, [wallet.address, updateBalance]);
 
+    /**
+     * Initial setup: if Phantom isn't installed, set error.
+     * Otherwise attempt auto-connect and hydrate wallet state.
+     */
     useEffect(() => {
         if (!isPhantomInstalled()) {
             setWallet({
@@ -175,6 +205,12 @@ export function useWallet() {
             });
     }, [updateBalance]);
 
+    /**
+     * Subscribe to Phantom events once installed:
+     * - connect: set address and balances
+     * - disconnect: clear state
+     * - accountChanged: update address and balances
+     */
     useEffect(() => {
         if (!isPhantomInstalled()) {
             return;
