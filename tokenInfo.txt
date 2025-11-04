@@ -1,0 +1,21 @@
+ishara@LOQ-15AHP9:~$ spl-token create-token
+Creating token 6K5JsDTUojwv4Wk7yR7KHG1UVTRSK7HUn8RkQ6Mg5ptL under program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+
+Address:  6K5JsDTUojwv4Wk7yR7KHG1UVTRSK7HUn8RkQ6Mg5ptL
+Decimals:  9
+
+Signature: 3MEfUwDYp55RUWGrv6Rf5a7AtZ9VaooNxuu2WXcCRBLDmr5Q5CqG1A4Lq58ZoPmP2fgVKyRvDz2vEhmK6gnQdc3r
+
+ishara@LOQ-15AHP9:~$ spl-token create-account 6K5JsDTUojwv4Wk7yR7KHG1UVTRSK7HUn8RkQ6Mg5ptL
+Creating account DueGsGS4Vv3yzLufsVSmWbu8jfqwpMwJt1XMj6Fan7yR
+
+Signature: 51T455wXoZGarXt3KN5n5fDDBCJ2yZaYSpLUrz4MnHgVtZjWJ5QBYbRzSABNss2NBz7SgqhjuzENn7HduRxaJAtU
+
+ishara@LOQ-15AHP9:~$  spl-token mint 6K5JsDTUojwv4Wk7yR7KHG1UVTRSK7HUn8RkQ6Mg5ptL 1000
+Minting 1000 tokens
+  Token: 6K5JsDTUojwv4Wk7yR7KHG1UVTRSK7HUn8RkQ6Mg5ptL
+  Recipient: DueGsGS4Vv3yzLufsVSmWbu8jfqwpMwJt1XMj6Fan7yR
+
+Signature: 5oXojNis6D7zKwtks289SkCWYhaBQQfsh1kMn729qa9sY8DJBBi8ZjW2TXFfZniuhyUNYLrv5dfMqegW4fBpbBvd
+
+ishara@LOQ-15AHP9:~$
