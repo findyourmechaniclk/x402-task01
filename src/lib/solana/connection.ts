@@ -1,6 +1,6 @@
 // src/lib/solana/connection.ts
 import { Connection, PublicKey } from '@solana/web3.js';
-import { SolanaNetwork } from '@/types';
+import { SolanaNetwork } from '@/types/common';
 import { NETWORK_CONFIGS, USDC_MINT_ADDRESSES } from '@/config/constants';
 
 /**

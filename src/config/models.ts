@@ -1,38 +1,111 @@
-// src/config/models.ts
-import { ModelConfig } from '@/types';
+// config/models.ts
+/**
+ * AI Model Configurations
+ * Defines available models, pricing, and limits
+ */
+import { ModelConfig } from '@/types/models';
 
-export const MODELS: Record<string, ModelConfig> = {
-    'gpt-4o': {
+export const MODELS: ModelConfig[] = [
+    // OpenAI Models
+    {
         id: 'gpt-4o',
-        name: 'GPT-4 Optimized',
+        name: 'GPT-4o',
         provider: 'openai',
-        version: '2024-08-06',
-        description: 'Most capable GPT-4 model, optimized for chat and reasoning tasks',
-        capabilities: ['text', 'reasoning', 'vision'],
+        version: 'gpt-4o-2024-11-20',
+        description: 'Most capable GPT-4 model, great for complex tasks',
+        capabilities: ['text', 'reasoning', 'analysis'],
         pricing: {
-            baseRequest: 0.01,
+            baseRequest: 0.03,
             perToken: {
-                input: 0.0000025,
-                output: 0.00001,
+                input: 0.00001,
+                output: 0.00003,
             },
             maxRequest: 0.15,
         },
         limits: {
             maxTokens: 4096,
             contextWindow: 128000,
-            rateLimit: 60,
+            rateLimit: 10000,
         },
         available: true,
     },
-    'gpt-4-turbo': {
+    {
         id: 'gpt-4-turbo',
         name: 'GPT-4 Turbo',
         provider: 'openai',
-        version: '2024-04-09',
-        description: 'Fast and efficient GPT-4 model for general tasks',
-        capabilities: ['text', 'reasoning'],
+        version: 'gpt-4-turbo-2024-04-09',
+        description: 'Faster GPT-4 with lower cost',
+        capabilities: ['text', 'reasoning', 'analysis'],
         pricing: {
             baseRequest: 0.01,
+            perToken: {
+                input: 0.000005,
+                output: 0.000015,
+            },
+            maxRequest: 0.03,
+        },
+        limits: {
+            maxTokens: 4096,
+            contextWindow: 128000,
+            rateLimit: 10000,
+        },
+        available: true,
+    },
+    {
+        id: 'gpt-3.5-turbo',
+        name: 'GPT-3.5 Turbo',
+        provider: 'openai',
+        version: 'gpt-3.5-turbo',
+        description: 'Fast and affordable for simple tasks',
+        capabilities: ['text'],
+        pricing: {
+            baseRequest: 0.005,
+            perToken: {
+                input: 0.000001,
+                output: 0.000002,
+            },
+            maxRequest: 0.01,
+        },
+        limits: {
+            maxTokens: 4096,
+            contextWindow: 16385,
+            rateLimit: 10000,
+        },
+        available: true,
+    },
+
+    // Google Gemini Models
+    {
+        id: 'gemini-2.0-flash',
+        name: 'Gemini 2.0 Flash',
+        provider: 'google',
+        version: '2.0-flash',
+        description: 'Fast and efficient multimodal model',
+        capabilities: ['text', 'vision', 'image'],
+        pricing: {
+            baseRequest: 0.01,
+            perToken: {
+                input: 0.000005,
+                output: 0.000015,
+            },
+            maxRequest: 0.10,
+        },
+        limits: {
+            maxTokens: 8192,
+            contextWindow: 32768,
+            rateLimit: 10000,
+        },
+        available: true,
+    },
+    {
+        id: 'gemini-1.5-pro',
+        name: 'Gemini 1.5 Pro',
+        provider: 'google',
+        version: '1.5-pro',
+        description: 'Advanced multimodal model with large context',
+        capabilities: ['text', 'vision', 'reasoning', 'analysis'],
+        pricing: {
+            baseRequest: 0.02,
             perToken: {
                 input: 0.00001,
                 output: 0.00003,
@@ -40,114 +113,127 @@ export const MODELS: Record<string, ModelConfig> = {
             maxRequest: 0.10,
         },
         limits: {
-            maxTokens: 4096,
-            contextWindow: 128000,
-            rateLimit: 60,
+            maxTokens: 8192,
+            contextWindow: 1000000,
+            rateLimit: 10000,
         },
         available: true,
     },
-    'gpt-3.5-turbo': {
-        id: 'gpt-3.5-turbo',
-        name: 'GPT-3.5 Turbo',
-        provider: 'openai',
-        version: '0125',
-        description: 'Fast and affordable model for simple tasks',
-        capabilities: ['text'],
+
+    // Anthropic Claude Models
+    {
+        id: 'claude-3-5-sonnet',
+        name: 'Claude 3.5 Sonnet',
+        provider: 'anthropic',
+        version: 'claude-3-5-sonnet-20241022',
+        description: 'Balanced performance and speed',
+        capabilities: ['text', 'reasoning', 'analysis'],
         pricing: {
             baseRequest: 0.01,
             perToken: {
-                input: 0.0000005,
-                output: 0.0000015,
+                input: 0.000005,
+                output: 0.000015,
             },
             maxRequest: 0.05,
         },
         limits: {
-            maxTokens: 4096,
-            contextWindow: 16385,
-            rateLimit: 100,
-        },
-        available: true,
-    },
-    'gemini-2.0-flash-exp': {
-        id: 'gemini-2.0-flash-exp',
-        name: 'Gemini 2.0 Flash',
-        provider: 'google',
-        version: '2.0',
-        description: 'Latest Gemini model with multimodal capabilities',
-        capabilities: ['text', 'image', 'vision', 'reasoning'],
-        pricing: {
-            baseRequest: 0.01,
-            perToken: {
-                input: 0.000001,
-                output: 0.000004,
-            },
-            maxRequest: 0.08,
-        },
-        limits: {
-            maxTokens: 8192,
-            contextWindow: 1000000,
-            rateLimit: 100,
-        },
-        available: true,
-    },
-    'gemini-1.5-pro': {
-        id: 'gemini-1.5-pro',
-        name: 'Gemini 1.5 Pro',
-        provider: 'google',
-        version: '1.5',
-        description: 'Powerful Gemini model with large context window',
-        capabilities: ['text', 'image', 'vision', 'analysis'],
-        pricing: {
-            baseRequest: 0.01,
-            perToken: {
-                input: 0.00000125,
-                output: 0.000005,
-            },
-            maxRequest: 0.10,
-        },
-        limits: {
-            maxTokens: 8192,
-            contextWindow: 2000000,
-            rateLimit: 60,
-        },
-        available: true,
-    },
-    'claude-3-5-sonnet': {
-        id: 'claude-3-5-sonnet',
-        name: 'Claude 3.5 Sonnet',
-        provider: 'anthropic',
-        version: '20241022',
-        description: 'Most intelligent Claude model for complex tasks',
-        capabilities: ['text', 'reasoning', 'analysis'],
-        pricing: {
-            baseRequest: 0.02,
-            perToken: {
-                input: 0.000003,
-                output: 0.000015,
-            },
-            maxRequest: 0.12,
-        },
-        limits: {
             maxTokens: 8192,
             contextWindow: 200000,
+            rateLimit: 10000,
+        },
+        available: true,
+    },
+    {
+        id: 'claude-3-opus',
+        name: 'Claude 3 Opus',
+        provider: 'anthropic',
+        version: 'claude-3-opus-20240229',
+        description: 'Most capable Claude model for complex tasks',
+        capabilities: ['text', 'reasoning', 'analysis'],
+        pricing: {
+            baseRequest: 0.05,
+            perToken: {
+                input: 0.00002,
+                output: 0.00006,
+            },
+            maxRequest: 0.15,
+        },
+        limits: {
+            maxTokens: 4096,
+            contextWindow: 200000,
+            rateLimit: 10000,
+        },
+        available: true,
+    },
+
+    // Image Generation Models
+    {
+        id: 'dall-e-3',
+        name: 'DALL-E 3',
+        provider: 'openai',
+        version: 'dall-e-3',
+        description: 'Advanced image generation model',
+        capabilities: ['image'],
+        pricing: {
+            baseRequest: 0.15,
+            perToken: {
+                input: 0,
+                output: 0,
+            },
+            maxRequest: 0.20,
+        },
+        limits: {
+            maxTokens: 0,
+            contextWindow: 0,
             rateLimit: 50,
         },
-        available: false,
+        available: true,
     },
-};
+];
 
-export const DEFAULT_MODEL = 'gpt-4o';
+/**
+ * Get model configuration by ID
+ */
+export function getModelById(id: string): ModelConfig | undefined {
+    return MODELS.find(model => model.id === id);
+}
 
-export const getAvailableModels = (): ModelConfig[] => {
-    return Object.values(MODELS).filter(model => model.available);
-};
+/**
+ * Get all available models
+ */
+export function getAvailableModels(): ModelConfig[] {
+    return MODELS.filter(model => model.available && !model.deprecated);
+}
 
-export const getModelById = (id: string): ModelConfig | undefined => {
-    return MODELS[id];
-};
-
-export const getModelsByProvider = (provider: string): ModelConfig[] => {
-    return Object.values(MODELS).filter(
-        model => model.provider === provider && model.available
+/**
+ * Get models by provider
+ */
+export function getModelsByProvider(provider: string): ModelConfig[] {
+    return MODELS.filter(
+        model => model.provider === provider && model.available && !model.deprecated
     );
-};
+}
+
+/**
+ * Get models by capability
+ */
+export function getModelsByCapability(capability: string): ModelConfig[] {
+    return MODELS.filter(
+        model =>
+            model.capabilities.includes(capability as any) &&
+            model.available &&
+            !model.deprecated
+    );
+}
+
+/**
+ * Default model ID
+ */
+export const DEFAULT_MODEL_ID = 'gpt-4o';
+
+/**
+ * Get default model
+ */
+export function getDefaultModel(): ModelConfig {
+    return getModelById(DEFAULT_MODEL_ID) || MODELS[0];
+}

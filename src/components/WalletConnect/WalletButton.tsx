@@ -2,7 +2,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { useWallet } from '@/hooks/useWallet';
+import { createPortal } from 'react-dom';
+import { useWallet } from '@/contexts/WalletContext';
 import { formatBalance } from '@/lib/wallet/balance';
 import { formatWalletAddress } from '@/lib/wallet/phantom';
 import { WalletInfo } from '@/components/WalletConnect/WalletInfo';
@@ -26,17 +27,51 @@ export function WalletButton() {
     // Dropdown visibility state and container ref for click-outside detection
     const [open, setOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement | null>(null);
+    const buttonRef = useRef<HTMLButtonElement | null>(null);
+    const dropdownRef = useRef<HTMLDivElement | null>(null);
+    const [mounted, setMounted] = useState(false);
+    const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Close dropdown when clicking outside the component
     useEffect(() => {
         function handleClickOutside(e: MouseEvent) {
-            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+            const target = e.target as Node;
+            const clickedOutsideContainer = !containerRef.current || !containerRef.current.contains(target);
+            const clickedOutsideDropdown = !dropdownRef.current || !dropdownRef.current.contains(target);
+            if (open && clickedOutsideContainer && clickedOutsideDropdown) {
                 setOpen(false);
             }
         }
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [open]);
+
+    // Keep dropdown positioned under the toggle button using viewport coordinates
+    useEffect(() => {
+        function updatePosition() {
+            if (!buttonRef.current) return;
+            const rect = buttonRef.current.getBoundingClientRect();
+            const panelWidth = 320; // w-80
+            const gap = 8; // mt-2 equivalent
+            const left = Math.max(8, rect.right - panelWidth);
+            const top = rect.bottom + gap;
+            setDropdownPos({ top, left });
+        }
+
+        if (open) {
+            updatePosition();
+            window.addEventListener('resize', updatePosition);
+            window.addEventListener('scroll', updatePosition, true);
+            return () => {
+                window.removeEventListener('resize', updatePosition);
+                window.removeEventListener('scroll', updatePosition, true);
+            };
+        }
+    }, [open]);
 
     // Show install prompt when Phantom is not available
     if (!isPhantomInstalled) {
@@ -117,7 +152,21 @@ export function WalletButton() {
         <div ref={containerRef} className="relative">
             {/* Connected state: compact button toggles dropdown */}
             <button
-                onClick={() => setOpen(v => !v)}
+                ref={buttonRef}
+                onClick={() => {
+                    setOpen(v => {
+                        const next = !v;
+                        if (next && buttonRef.current) {
+                            const rect = buttonRef.current.getBoundingClientRect();
+                            const panelWidth = 320; // w-80
+                            const gap = 8; // mt-2 equivalent
+                            const left = Math.max(8, rect.right - panelWidth);
+                            const top = rect.bottom + gap;
+                            setDropdownPos({ top, left });
+                        }
+                        return next;
+                    });
+                }}
                 aria-expanded={open}
                 className="group bg-gradient-to-r from-purple-600 to-cyan-600 p-[1px] rounded-full transition-all shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-purple-400/40"
             >
@@ -126,7 +175,7 @@ export function WalletButton() {
                     <span className="inline-block w-2 h-2 rounded-full bg-green-400" />
                     <span className="text-sm font-medium">{formatWalletAddress(wallet.address)}</span>
                     <span className="mx-1 text-gray-500">•</span>
-                    <span className="text-xs text-gray-300">{formatBalance(balance.usdc, 'USDC')} USDC</span>
+                    <span className="text-xs text-gray-300">{formatBalance(wallet.balance?.usdc || 0, 'USDC')} USDC</span>
                     <svg
                         className="w-4 h-4 text-gray-300 transition-transform group-aria-expanded:rotate-180"
                         xmlns="http://www.w3.org/2000/svg"
@@ -139,9 +188,13 @@ export function WalletButton() {
                 </span>
             </button>
 
-            {/* Dropdown panel: translucent tint + backdrop blur for frosted look */}
-            {open && (
-                < div className="absolute right-0 mt-2 w-80 bg-slate-950/80 border border-white/10 rounded-xl shadow-xl backdrop-blur-lg p-4 z-50">
+            {/* Dropdown panel rendered via portal with fixed positioning for proper backdrop blur */}
+            {mounted && open && dropdownPos && createPortal(
+                <div
+                    ref={dropdownRef}
+                    style={{ top: dropdownPos.top, left: dropdownPos.left }}
+                    className="fixed w-80 bg-black/40 border border-white/10 rounded-xl shadow-xl backdrop-blur-lg p-4 z-[100]"
+                >
                     <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-semibold text-cyan-400">Wallet</h3>
                         <button
@@ -170,9 +223,9 @@ export function WalletButton() {
                             Disconnect
                         </button>
                     </div>
-                </div>
-            )
-            }
+                </div>,
+                document.body
+            )}
         </div >
     );
 }
