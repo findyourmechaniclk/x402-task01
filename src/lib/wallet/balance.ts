@@ -1,7 +1,7 @@
 // src/lib/wallet/balance.ts
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { getAssociatedTokenAddress, getAccount, getMint } from '@solana/spl-token';
-import { WalletBalance } from '@/types';
+import { WalletBalance } from '@/types/wallet';
 import { createConnection, getUsdcMintAddress } from '@/lib/solana/connection';
 
 /**

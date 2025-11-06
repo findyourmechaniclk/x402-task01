@@ -16,7 +16,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Top navigation bar with brand, primary nav, and wallet actions */}
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-gray-800 bg-black/60 backdrop-blur-xl">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-gray-800 bg-black/60 backdrop-blur-lg">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             {/* Brand mark */}

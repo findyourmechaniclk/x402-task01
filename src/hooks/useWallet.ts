@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { PublicKey } from '@solana/web3.js';
-import { WalletState, WalletBalance } from '@/types';
+import { WalletState, WalletBalance } from '@/types/wallet';
 import {
     connectWallet,
     disconnectWallet,
@@ -35,6 +35,7 @@ export function useWallet() {
     const [wallet, setWallet] = useState<WalletState>({
         address: null,
         connected: false,
+        balance: null,
         loading: true,
         error: null,
     });
@@ -93,6 +94,7 @@ export function useWallet() {
                 setWallet({
                     address,
                     connected: true,
+                    balance: null,
                     loading: false,
                     error: null,
                 });
@@ -103,6 +105,7 @@ export function useWallet() {
                 setWallet({
                     address: null,
                     connected: false,
+                    balance: null,
                     loading: false,
                     error: 'Failed to connect wallet',
                 });
@@ -112,6 +115,7 @@ export function useWallet() {
             setWallet({
                 address: null,
                 connected: false,
+                balance: null,
                 loading: false,
                 error: error instanceof Error ? error.message : 'Unknown error',
             });
@@ -127,6 +131,7 @@ export function useWallet() {
             setWallet({
                 address: null,
                 connected: false,
+                balance: null,
                 loading: false,
                 error: null,
             });
@@ -159,6 +164,7 @@ export function useWallet() {
             setWallet({
                 address: null,
                 connected: false,
+                balance: null,
                 loading: false,
                 error: 'Phantom wallet not installed',
             });
@@ -171,6 +177,7 @@ export function useWallet() {
                     setWallet({
                         address,
                         connected: true,
+                        balance: null,
                         loading: false,
                         error: null,
                     });
@@ -181,6 +188,7 @@ export function useWallet() {
                         setWallet({
                             address: null,
                             connected: false,
+                            balance: null,
                             loading: false,
                             error: null,
                         });
@@ -188,17 +196,19 @@ export function useWallet() {
                         setWallet({
                             address: null,
                             connected: false,
+                            balance: null,
                             loading: false,
                             error: null,
                         });
                     }
                 }
             })
-            .catch(error => {
+            .catch((error: Error) => {
                 console.error('Auto-connect failed:', error);
                 setWallet({
                     address: null,
                     connected: false,
+                    balance: null,
                     loading: false,
                     error: null,
                 });
@@ -216,9 +226,9 @@ export function useWallet() {
             return;
         }
 
-        onWalletConnect(publicKey => {
+        onWalletConnect((publicKey: PublicKey | null) => {
             if (publicKey) {
-                const address = publicKey.toString();
+                const address: string = publicKey.toString();
                 setWallet(prev => ({
                     ...prev,
                     address,
@@ -234,6 +244,7 @@ export function useWallet() {
             setWallet({
                 address: null,
                 connected: false,
+                balance: null,
                 loading: false,
                 error: null,
             });

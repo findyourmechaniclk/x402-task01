@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { useWallet } from '@/hooks/useWallet';
+import { useWallet } from '@/contexts/WalletContext';
 import { formatBalance } from '@/lib/wallet/balance';
 import { formatWalletAddress } from '@/lib/wallet/phantom';
 import { WalletInfo } from '@/components/WalletConnect/WalletInfo';
@@ -126,7 +126,7 @@ export function WalletButton() {
                     <span className="inline-block w-2 h-2 rounded-full bg-green-400" />
                     <span className="text-sm font-medium">{formatWalletAddress(wallet.address)}</span>
                     <span className="mx-1 text-gray-500">•</span>
-                    <span className="text-xs text-gray-300">{formatBalance(balance.usdc, 'USDC')} USDC</span>
+                    <span className="text-xs text-gray-300">{formatBalance(wallet.balance?.usdc || 0, 'USDC')} USDC</span>
                     <svg
                         className="w-4 h-4 text-gray-300 transition-transform group-aria-expanded:rotate-180"
                         xmlns="http://www.w3.org/2000/svg"

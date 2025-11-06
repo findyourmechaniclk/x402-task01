@@ -314,3 +314,25 @@ export function isValidSolanaAddress(address: string): boolean {
         return false;
     }
 }
+
+/**
+ * Attempt to auto-connect if wallet was previously connected
+ */
+export async function autoConnect(): Promise<string | null> {
+    const provider = getPhantomProvider();
+
+    if (!provider) {
+        return null;
+    }
+
+    try {
+        // Try to connect with onlyIfTrusted flag
+        const response = await provider.connect({ onlyIfTrusted: true });
+        const publicKey = response.publicKey.toString();
+        console.log('Wallet auto-connected:', publicKey);
+        return publicKey;
+    } catch (error) {
+        // User hasn't trusted the app yet or rejected
+        return null;
+    }
+}

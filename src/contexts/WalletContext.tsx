@@ -22,10 +22,18 @@ import { getWalletBalances } from '@/lib/wallet/solana';
 import { WalletState, WalletBalance } from '@/types/wallet';
 
 interface WalletContextType extends WalletState {
+    address: string | null;
+    connected: boolean;
+    balance: WalletBalance | null;
+    loading: boolean;
+    error: string | null;
+    wallet: WalletState;
     connect: () => Promise<void>;
     disconnect: () => Promise<void>;
     refreshBalance: () => Promise<void>;
     isInstalled: boolean;
+    isConnected: boolean;
+    isPhantomInstalled: boolean;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -254,11 +262,18 @@ export function WalletProvider({ children }: WalletProviderProps) {
     }, [isInstalled, fetchBalance]);
 
     const value: WalletContextType = {
-        ...state,
+        address: state.address,
+        connected: state.connected,
+        balance: state.balance,
+        loading: state.loading,
+        error: state.error,
+        wallet: state,
         connect,
         disconnect,
         refreshBalance,
         isInstalled,
+        isConnected: state.connected,
+        isPhantomInstalled: isInstalled,
     };
 
     return (

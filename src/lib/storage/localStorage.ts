@@ -5,7 +5,8 @@
  * during SSR and to avoid throwing when localStorage is unavailable.
  */
 
-import { Conversation, Message, StorageData } from '@/types';
+import { Conversation, Message } from '@/types/chat';
+import { StorageData } from '@/types/common';
 import { STORAGE_KEYS } from '@/config/constants';
 
 // ============================================

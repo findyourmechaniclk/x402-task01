@@ -20,6 +20,34 @@ export const SOLANA_CONFIG = {
     CONFIRM_TIMEOUT: 60000, // 60 seconds
 } as const;
 
+// Network Configurations
+export const NETWORK_CONFIGS = {
+    'mainnet-beta': {
+        name: 'mainnet-beta' as const,
+        rpcUrl: 'https://api.mainnet-beta.solana.com',
+    },
+    'devnet': {
+        name: 'devnet' as const,
+        rpcUrl: 'https://api.devnet.solana.com',
+    },
+    'testnet': {
+        name: 'testnet' as const,
+        rpcUrl: 'https://api.testnet.solana.com',
+    },
+    'localnet': {
+        name: 'localnet' as const,
+        rpcUrl: 'http://localhost:8899',
+    },
+} as const;
+
+// USDC Mint addresses for different networks
+export const USDC_MINT_ADDRESSES = {
+    'mainnet-beta': 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+    'devnet': '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+    'testnet': 'CpMah17kQEL2wqyMKt3mZBdTnZbkbfx4nqmQMFDP5vwp',
+    'localnet': '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+} as const;
+
 // X402 Protocol Configuration
 export const X402_CONFIG = {
     CHALLENGE_EXPIRY_MINUTES: 5,

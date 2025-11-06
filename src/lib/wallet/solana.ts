@@ -17,13 +17,8 @@ import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { WalletBalance } from '@/types/wallet';
 import { SolanaNetwork } from '@/types/common';
 
-// USDC Mint addresses for different networks
-const USDC_MINT_ADDRESSES: Record<SolanaNetwork, string> = {
-    'mainnet-beta': 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-    'devnet': '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
-    'testnet': 'CpMah17kQEL2wqyMKt3mZBdTnZbkbfx4nqmQMFDP5vwp',
-    'localnet': '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', // Use devnet for local
-};
+// USDC Mint address
+const USDC_MINT_ADDRESS = `${process.env.NEXT_PUBLIC_USDC_MINT}`;
 
 // Connection instance cache
 let cachedConnection: Connection | null = null;
@@ -47,6 +42,13 @@ export function getRpcUrl(): string {
     }
 
     const network = getSolanaNetwork();
+
+    // Handle localnet separately as it's not a valid Cluster type
+    if (network === 'localnet') {
+        return 'http://localhost:8899';
+    }
+
+    // clusterApiUrl only accepts 'mainnet-beta', 'devnet', 'testnet'
     return clusterApiUrl(network);
 }
 
@@ -93,7 +95,7 @@ export async function getUSDCBalance(publicKey: PublicKey): Promise<number> {
     try {
         const connection = getConnection();
         const network = getSolanaNetwork();
-        const usdcMint = new PublicKey(USDC_MINT_ADDRESSES[network]);
+        const usdcMint = new PublicKey(USDC_MINT_ADDRESS);
 
         // Get all token accounts owned by the wallet
         const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
@@ -236,7 +238,7 @@ export async function createUSDCTransferTransaction(
     try {
         const connection = getConnection();
         const network = getSolanaNetwork();
-        const usdcMint = new PublicKey(USDC_MINT_ADDRESSES[network]);
+        const usdcMint = new PublicKey(USDC_MINT_ADDRESS);
 
         // Get the token accounts
         const fromTokenAccounts = await connection.getParsedTokenAccountsByOwner(
