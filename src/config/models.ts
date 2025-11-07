@@ -1,3 +1,5 @@
+// src/app/config/models.ts
+
 // config/models.ts
 /**
  * AI Model Configurations
