@@ -1,9 +1,11 @@
-// src/hooks/useX402Payment.ts - Working X402 payment hook
+// src/hooks/useX402Payment.ts - Updated with real USDC transfers
 'use client';
 
 import { useState, useCallback } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
-import { signMessage } from '@/lib/wallet/phantom';
+import { signMessage, signTransaction } from '@/lib/wallet/phantom';
+import { createUSDCTransferTransaction, sendSignedTransaction, checkUSDCBalance } from '@/lib/wallet/transfers';
+import { PublicKey } from '@solana/web3.js';
 
 interface PaymentData {
     challenge: string;
@@ -23,7 +25,7 @@ interface UseX402PaymentReturn {
 export function useX402Payment(): UseX402PaymentReturn {
     const [isPaying, setIsPaying] = useState(false);
     const [paymentError, setPaymentError] = useState<string | null>(null);
-    const { address, connected, balance } = useWallet();
+    const { address, connected, balance, refreshBalance } = useWallet();
 
     const processPayment = useCallback(async (
         paymentData: PaymentData,
@@ -44,18 +46,50 @@ export function useX402Payment(): UseX402PaymentReturn {
         setPaymentError(null);
 
         try {
-            console.log('🔐 Signing payment challenge:', paymentData.challenge);
+            const fromPublicKey = new PublicKey(address);
+            const toPublicKey = new PublicKey(paymentData.recipient);
 
-            // Sign the challenge
+            console.log('💰 Checking USDC balance...');
+
+            // Check balance before proceeding
+            const balanceCheck = await checkUSDCBalance(fromPublicKey, paymentData.amount);
+            if (!balanceCheck.hasBalance) {
+                throw new Error(
+                    `Insufficient balance. Required: ${paymentData.amount}, Available: ${balanceCheck.currentBalance}`
+                );
+            }
+
+            console.log('🔗 Creating USDC transfer transaction...');
+
+            // Create the transfer transaction
+            const transaction = await createUSDCTransferTransaction(
+                fromPublicKey,
+                toPublicKey,
+                paymentData.amount
+            );
+
+            console.log('🔐 Requesting wallet signature...');
+
+            // Sign the transaction with user's wallet
+            const signedTransaction = await signTransaction(transaction);
+
+            console.log('📡 Sending transaction to blockchain...');
+
+            // Send the signed transaction
+            const transactionHash = await sendSignedTransaction(signedTransaction);
+
+            console.log('✅ Transaction successful:', transactionHash);
+
+            // Now sign the challenge for API authentication
             const messageBytes = new TextEncoder().encode(paymentData.challenge);
             const signatureResult = await signMessage(messageBytes);
             const signatureHex = Array.from(signatureResult.signature)
                 .map((b: number) => b.toString(16).padStart(2, '0'))
                 .join('');
 
-            console.log('✅ Payment challenge signed, making request with X402 headers');
+            console.log('🔐 Challenge signed, making authenticated API request...');
 
-            // Make request with X402 headers
+            // Make the API request with both transaction proof and signature
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
@@ -64,6 +98,7 @@ export function useX402Payment(): UseX402PaymentReturn {
                     'X-402-Challenge': paymentData.challenge,
                     'X-402-Signature': signatureHex,
                     'X-402-Address': address,
+                    'X-402-Transaction': transactionHash,
                     'X-402-Payment-Required': 'true'
                 },
                 body: JSON.stringify({ message, model })
@@ -82,6 +117,10 @@ export function useX402Payment(): UseX402PaymentReturn {
             }
 
             const responseData = await response.json();
+
+            // Refresh wallet balance after successful payment
+            await refreshBalance();
+
             console.log('✅ Payment processed successfully');
             return responseData;
 
@@ -93,7 +132,7 @@ export function useX402Payment(): UseX402PaymentReturn {
         } finally {
             setIsPaying(false);
         }
-    }, [connected, address, balance]);
+    }, [connected, address, refreshBalance]);
 
     const clearError = useCallback(() => {
         setPaymentError(null);

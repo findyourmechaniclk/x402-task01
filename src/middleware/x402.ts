@@ -1,4 +1,4 @@
-// src/middleware/x402.ts - Fixed imports
+// src/middleware/x402.ts - Enhanced with transaction verification
 import { NextRequest, NextResponse } from 'next/server';
 import {
     createPaymentChallenge,
@@ -6,7 +6,8 @@ import {
     calculateRequestCost,
     createPaymentData
 } from '@/lib/x402/protocol';
-import { X402Challenge } from '@/types/x402'; // Import from types instead
+import { verifyTransaction } from '@/lib/wallet/solana';
+import { X402Challenge } from '@/types/x402';
 
 const RECIPIENT_WALLET = process.env.X402_RECIPIENT_WALLET!;
 
@@ -19,6 +20,7 @@ export function createX402Middleware() {
             const challenge = request.headers.get('X-402-Challenge');
             const signature = request.headers.get('X-402-Signature');
             const walletAddress = request.headers.get('X-402-Address');
+            const transactionHash = request.headers.get('X-402-Transaction');
             const paymentRequired = request.headers.get('X-402-Payment-Required');
 
             // Parse request body to calculate cost
@@ -40,6 +42,23 @@ export function createX402Middleware() {
             if (!challenge || !signature || !walletAddress || paymentRequired !== 'true') {
                 console.log('❌ No valid payment headers found, requiring payment');
                 return createPaymentRequiredResponse(cost, model, message);
+            }
+
+            // If transaction hash is provided, verify it on blockchain
+            if (transactionHash) {
+                console.log('🔗 Verifying blockchain transaction:', transactionHash);
+
+                try {
+                    const isConfirmed = await verifyTransaction(transactionHash);
+                    if (!isConfirmed) {
+                        console.log('❌ Transaction not confirmed on blockchain');
+                        return createPaymentRequiredResponse(cost, model, message, 'Transaction not confirmed');
+                    }
+                    console.log('✅ Blockchain transaction verified');
+                } catch (error) {
+                    console.error('❌ Transaction verification failed:', error);
+                    return createPaymentRequiredResponse(cost, model, message, 'Transaction verification failed');
+                }
             }
 
             // Verify payment signature
