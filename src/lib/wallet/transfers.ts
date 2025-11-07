@@ -11,6 +11,7 @@ import {
     createAssociatedTokenAccountInstruction,
     createTransferInstruction,
     getAccount,
+    getMint,
     TokenAccountNotFoundError,
     TokenInvalidAccountOwnerError,
 } from '@solana/spl-token';
@@ -28,9 +29,15 @@ export async function createUSDCTransferTransaction(
     const connection = createConnection();
     const usdcMint = getUsdcMintAddress();
 
-    // Convert USDC amount to token amount (using mint decimals)
-    const mintInfo = await connection.getAccountInfo(usdcMint);
-    const decimals = 9; // Your token has 9 decimals
+    // Convert USDC amount to token amount using dynamic mint decimals
+    let decimals = 6;
+    try {
+        const mintInfo = await getMint(connection, usdcMint);
+        decimals = typeof mintInfo.decimals === 'number' ? mintInfo.decimals : 6;
+        console.log('USDC mint decimals:', decimals);
+    } catch (e) {
+        console.warn('Unable to fetch USDC mint decimals, defaulting to 6:', e);
+    }
     const tokenAmount = BigInt(Math.floor(amount * Math.pow(10, decimals)));
 
     // Get associated token addresses
@@ -122,7 +129,14 @@ export async function checkUSDCBalance(
         );
 
         const account = await getAccount(connection, tokenAccount);
-        const decimals = 9; // Your token decimals
+        // Resolve mint decimals dynamically (fallback to 6)
+        let decimals = 6;
+        try {
+            const mintInfo = await getMint(connection, usdcMint);
+            decimals = typeof mintInfo.decimals === 'number' ? mintInfo.decimals : 6;
+        } catch (e) {
+            console.warn('Unable to fetch USDC mint decimals, defaulting to 6:', e);
+        }
         const currentBalance = Number(account.amount) / Math.pow(10, decimals);
 
         return {
