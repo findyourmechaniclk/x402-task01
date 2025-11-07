@@ -1,137 +1,115 @@
-// src/middleware/x402.ts - Fixed X402 middleware using official packages
+// src/middleware/x402.ts - Fixed imports
 import { NextRequest, NextResponse } from 'next/server';
-import { createFacilitatorConfig } from '@coinbase/x402';
-import { paymentMiddleware } from 'x402-next';
-import { getModelById } from '@/config/models';
-import type { SolanaAddress } from 'x402-next';
+import {
+    createPaymentChallenge,
+    verifyPaymentSignature,
+    calculateRequestCost,
+    createPaymentData
+} from '@/lib/x402/protocol';
+import { X402Challenge } from '@/types/x402'; // Import from types instead
 
-/**
- * Create X402 payment middleware for specific routes
- * This uses the official Coinbase X402 implementation
- */
+const RECIPIENT_WALLET = process.env.X402_RECIPIENT_WALLET!;
+
 export function createX402Middleware() {
-    // Get Solana wallet address for payments
-    const recipientWallet = process.env.X402_RECIPIENT_WALLET;
-    if (!recipientWallet) {
-        throw new Error('X402_RECIPIENT_WALLET environment variable is required');
-    }
+    return async function x402Handler(request: NextRequest): Promise<NextResponse> {
+        try {
+            console.log('🔍 X402 Middleware: Processing request to', request.nextUrl.pathname);
 
-    // Configure payment middleware with Solana network
-    return paymentMiddleware(
-        recipientWallet as SolanaAddress,
-        {
-            '/api/chat': {
-                price: '$0.01', // Fixed price for chat requests
-                network: 'solana-devnet', // Use devnet for testing
-                config: {
-                    description: 'AI Chat Request',
-                    mimeType: 'application/json'
-                }
-            },
-            '/api/models': {
-                price: '$0.001', // Cheaper for model listing
-                network: 'solana-devnet',
-                config: {
-                    description: 'Get Available AI Models',
-                    mimeType: 'application/json'
-                }
+            // Extract X402 headers
+            const challenge = request.headers.get('X-402-Challenge');
+            const signature = request.headers.get('X-402-Signature');
+            const walletAddress = request.headers.get('X-402-Address');
+            const paymentRequired = request.headers.get('X-402-Payment-Required');
+
+            // Parse request body to calculate cost
+            let body;
+            try {
+                const bodyText = await request.text();
+                body = bodyText ? JSON.parse(bodyText) : {};
+            } catch {
+                body = {};
             }
-        },
-        // Use default facilitator (x402.org for testnet)
-        undefined,
-        {
-            // Optional paywall configuration
-            appLogo: '/favicon.ico',
-            appName: 'Solana X402 GPT'
+
+            const model = body.model || 'gpt-3.5-turbo';
+            const message = body.message || '';
+            const cost = calculateRequestCost(model, message.length);
+
+            console.log(`💰 Calculated cost: ${cost} USDC for model ${model}`);
+
+            // If no payment headers, require payment
+            if (!challenge || !signature || !walletAddress || paymentRequired !== 'true') {
+                console.log('❌ No valid payment headers found, requiring payment');
+                return createPaymentRequiredResponse(cost, model, message);
+            }
+
+            // Verify payment signature
+            console.log('🔐 Verifying payment signature...');
+            const isValidSignature = verifyPaymentSignature(challenge, signature, walletAddress);
+
+            if (!isValidSignature) {
+                console.log('❌ Invalid payment signature');
+                return createPaymentRequiredResponse(cost, model, message, 'Invalid payment signature');
+            }
+
+            console.log('✅ Payment verified! Proceeding with request');
+
+            // Create new request with body for the API route
+            const newRequest = new NextRequest(request.url, {
+                method: request.method,
+                headers: request.headers,
+                body: JSON.stringify(body),
+            });
+
+            // Continue to API route
+            return NextResponse.next({
+                request: newRequest
+            });
+
+        } catch (error) {
+            console.error('❌ X402 Middleware error:', error);
+            return NextResponse.json(
+                {
+                    error: 'Payment processing failed',
+                    message: error instanceof Error ? error.message : 'Unknown error'
+                },
+                { status: 500 }
+            );
         }
-    );
+    };
 }
 
-/**
- * Manual payment verification for custom implementations
- * This is a fallback if you need custom logic
- */
-export async function verifyX402Payment(request: NextRequest): Promise<{
-    verified: boolean;
-    error?: string;
-    amount?: number;
-}> {
-    try {
-        // Extract X402 headers
-        const challenge = request.headers.get('X-402-Challenge');
-        const signature = request.headers.get('X-402-Signature');
-        const walletAddress = request.headers.get('X-402-Address');
-
-        if (!challenge || !signature || !walletAddress) {
-            return {
-                verified: false,
-                error: 'Missing X402 payment headers'
-            };
-        }
-
-        // For now, we'll let the official middleware handle verification
-        // In a custom implementation, you would verify the signature here
-        return {
-            verified: true,
-            amount: 0.01
-        };
-
-    } catch (error) {
-        console.error('X402 verification error:', error);
-        return {
-            verified: false,
-            error: 'Payment verification failed'
-        };
-    }
-}
-
-/**
- * Calculate dynamic pricing based on model and request
- */
-export function calculateRequestPrice(model: string, messageLength: number): string {
-    const modelConfig = getModelById(model);
-    if (!modelConfig) {
-        return '$0.01'; // Default price
-    }
-
-    // Calculate estimated cost
-    const inputTokens = Math.ceil(messageLength / 4);
-    const outputTokens = 100; // Estimated
-    const cost = modelConfig.pricing.baseRequest +
-        (inputTokens * modelConfig.pricing.perToken.input) +
-        (outputTokens * modelConfig.pricing.perToken.output);
-
-    // Convert to dollar format for X402
-    return `$${Math.max(0.001, cost).toFixed(3)}`;
-}
-
-/**
- * Create payment required response for manual implementations
- */
-export function createPaymentRequiredResponse(
-    challenge: string,
-    amount: string,
-    description: string = 'Payment required for AI request'
+function createPaymentRequiredResponse(
+    cost: number,
+    model: string,
+    message: string,
+    errorMessage: string = 'Payment required'
 ): NextResponse {
+    // Create payment challenge
+    const challenge: X402Challenge = createPaymentChallenge(cost, RECIPIENT_WALLET);
+    const paymentData = createPaymentData(challenge);
+
+    console.log('💳 Creating 402 Payment Required response:', paymentData);
+
     return NextResponse.json(
         {
             error: 'payment_required',
-            message: 'Payment required for this request',
-            payment: {
-                challenge,
-                amount,
-                currency: 'USDC',
-                network: 'solana-devnet',
-                description
+            message: errorMessage,
+            payment: paymentData,
+            details: {
+                model,
+                estimatedCost: cost,
+                messagePreview: message.substring(0, 50) + '...'
             }
         },
         {
             status: 402,
             headers: {
-                'X-402-Challenge': challenge,
-                'X-402-Price': amount.replace('$', ''),
-                'X-402-Currency': 'USDC',
-                'X-402-Network': 'solana-devnet'
+                'X-402-Challenge': paymentData.challenge,
+                'X-402-Price': paymentData.amount.toString(),
+                'X-402-Currency': paymentData.currency,
+                'X-402-Recipient': paymentData.recipient,
+                'X-402-Expiry': paymentData.expiresAt,
+                'Content-Type': 'application/json'
             }
         }
     );

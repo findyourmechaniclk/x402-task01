@@ -72,65 +72,37 @@ export default function ChatPage() {
         clearError();
 
         try {
-            // Step 1: Check if payment is required
-            console.log('🔍 Checking payment requirements...');
+            console.log('🚀 Starting chat request for:', userMessage.substring(0, 50));
+
+            // Step 1: Always check if payment is required first
             const paymentData = await checkPaymentRequired('/api/chat', {
                 model: selectedModel,
                 message: userMessage
             });
 
             if (paymentData) {
-                console.log('💳 Payment required:', paymentData);
+                console.log('💳 Payment required, processing payment...');
                 setPendingPayment(paymentData);
 
-                // Process payment using X402
-                const paymentSuccess = await processPayment(
-                    paymentData,
-                    userMessage,
-                    selectedModel
-                );
-
+                // Process payment
+                const result = await processPayment(paymentData, userMessage, selectedModel);
                 setPendingPayment(null);
 
-                if (!paymentSuccess) {
-                    // Payment failed - error already set by processPayment
+                if (result && result.success) {
+                    addMessage('assistant', result.response, result.cost?.amount || paymentData.amount);
+                    console.log('✅ Payment successful, response received');
+                } else {
                     addMessage('error', paymentError || 'Payment failed');
-                    return;
                 }
-
-                // Payment succeeded - the processPayment already made the request
-                addMessage('assistant', 'Payment processed and request completed!');
-                return;
-            }
-
-            // Step 2: No payment required or already paid - make direct request
-            console.log('✅ No payment required, making direct request');
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: selectedModel,
-                    message: userMessage,
-                }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error?.message || `Request failed: ${response.status}`);
-            }
-
-            const data = await response.json();
-            if (data.success) {
-                addMessage('assistant', data.response, data.cost?.amount || 0.01);
             } else {
-                addMessage('error', data.error?.message || 'Request failed');
+                // No payment required (shouldn't happen with our setup)
+                console.log('ℹ️ No payment required');
+                addMessage('error', 'No payment required - this should not happen');
             }
 
         } catch (err) {
-            console.error('Chat request error:', err);
-            const errorMessage = err instanceof Error
-                ? err.message
-                : 'An unexpected error occurred';
+            console.error('❌ Chat request error:', err);
+            const errorMessage = err instanceof Error ? err.message : 'Request failed';
             addMessage('error', errorMessage);
         } finally {
             setLoading(false);

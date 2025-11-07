@@ -1,10 +1,9 @@
-// src/hooks/useX402Payment.ts - Fixed hook for X402 payments using proper wallet types
+// src/hooks/useX402Payment.ts - Working X402 payment hook
 'use client';
 
 import { useState, useCallback } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
 import { signMessage } from '@/lib/wallet/phantom';
-import type { WalletState } from '@/types/wallet';
 
 interface PaymentData {
     challenge: string;
@@ -17,7 +16,7 @@ interface PaymentData {
 interface UseX402PaymentReturn {
     isPaying: boolean;
     paymentError: string | null;
-    processPayment: (paymentData: PaymentData, message: string, model: string) => Promise<boolean>;
+    processPayment: (paymentData: PaymentData, message: string, model: string) => Promise<any>;
     clearError: () => void;
 }
 
@@ -30,37 +29,33 @@ export function useX402Payment(): UseX402PaymentReturn {
         paymentData: PaymentData,
         message: string,
         model: string
-    ): Promise<boolean> => {
+    ) => {
         if (!connected || !address) {
             setPaymentError('Wallet not connected');
-            return false;
+            return null;
         }
 
-        // Check balance
         if (balance && balance.usdc < paymentData.amount) {
             setPaymentError(`Insufficient USDC balance. Required: ${paymentData.amount}, Available: ${balance.usdc}`);
-            return false;
+            return null;
         }
 
         setIsPaying(true);
         setPaymentError(null);
 
         try {
-            // Step 1: Sign the payment challenge using Phantom wallet
             console.log('🔐 Signing payment challenge:', paymentData.challenge);
 
-            const messageToSign = paymentData.challenge;
-            const messageBytes = new TextEncoder().encode(messageToSign);
-
-            // Use the phantom wallet signing function
+            // Sign the challenge
+            const messageBytes = new TextEncoder().encode(paymentData.challenge);
             const signatureResult = await signMessage(messageBytes);
             const signatureHex = Array.from(signatureResult.signature)
                 .map((b: number) => b.toString(16).padStart(2, '0'))
                 .join('');
 
-            console.log('✅ Payment challenge signed successfully');
+            console.log('✅ Payment challenge signed, making request with X402 headers');
 
-            // Step 2: Make the chat request with X402 payment headers
+            // Make request with X402 headers
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
@@ -74,30 +69,27 @@ export function useX402Payment(): UseX402PaymentReturn {
                 body: JSON.stringify({ message, model })
             });
 
-            // Check response status
+            console.log('📡 Response status:', response.status);
+
             if (response.status === 402) {
-                // Still need payment - payment verification failed
                 const errorData = await response.json();
-                throw new Error(errorData.message || errorData.error?.message || 'Payment verification failed');
+                throw new Error(errorData.message || 'Payment verification failed');
             }
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error?.message || 'Request failed after payment');
+                throw new Error(errorData.error?.message || 'Request failed');
             }
 
-            // Success - payment verified and request completed
             const responseData = await response.json();
-            console.log('✅ Payment verified and request completed:', responseData);
-            return true;
+            console.log('✅ Payment processed successfully');
+            return responseData;
 
         } catch (error) {
             console.error('❌ Payment processing error:', error);
-            const errorMessage = error instanceof Error
-                ? error.message
-                : 'Payment processing failed';
+            const errorMessage = error instanceof Error ? error.message : 'Payment processing failed';
             setPaymentError(errorMessage);
-            return false;
+            return null;
         } finally {
             setIsPaying(false);
         }
@@ -124,14 +116,19 @@ export function usePaymentRequired() {
         body: any
     ): Promise<PaymentData | null> => {
         try {
+            console.log('🔍 Checking if payment is required for:', endpoint);
+
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
 
+            console.log('📡 Payment check response status:', response.status);
+
             if (response.status === 402) {
                 const data = await response.json();
+                console.log('💳 Payment required:', data.payment);
                 return data.payment || null;
             }
 
