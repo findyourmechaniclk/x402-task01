@@ -30,6 +30,7 @@ export const MODELS: ModelConfig[] = [
             rateLimit: 10000,
         },
         available: true,
+        enabled: process.env.NEXT_PUBLIC_OPENAI_ENABLED === 'true' || true
     },
     {
         id: 'gpt-4-turbo',
@@ -52,6 +53,7 @@ export const MODELS: ModelConfig[] = [
             rateLimit: 10000,
         },
         available: true,
+        enabled: process.env.NEXT_PUBLIC_OPENAI_ENABLED === 'true' || true
     },
     {
         id: 'gpt-3.5-turbo',
@@ -74,6 +76,7 @@ export const MODELS: ModelConfig[] = [
             rateLimit: 10000,
         },
         available: true,
+        enabled: process.env.NEXT_PUBLIC_OPENAI_ENABLED === 'true' || true
     },
 
     // Google Gemini Models
@@ -98,6 +101,7 @@ export const MODELS: ModelConfig[] = [
             rateLimit: 10000,
         },
         available: true,
+        enabled: process.env.NEXT_PUBLIC_GEMINI_ENABLED === 'true' || true
     },
     {
         id: 'gemini-1.5-pro',
@@ -120,6 +124,7 @@ export const MODELS: ModelConfig[] = [
             rateLimit: 10000,
         },
         available: true,
+        enabled: process.env.NEXT_PUBLIC_GEMINI_ENABLED === 'true' || true
     },
 
     // Anthropic Claude Models
@@ -144,6 +149,7 @@ export const MODELS: ModelConfig[] = [
             rateLimit: 10000,
         },
         available: true,
+        enabled: process.env.NEXT_PUBLIC_CLAUDE_ENABLED === 'true' || true
     },
     {
         id: 'claude-3-opus',
@@ -166,6 +172,7 @@ export const MODELS: ModelConfig[] = [
             rateLimit: 10000,
         },
         available: true,
+        enabled: process.env.NEXT_PUBLIC_CLAUDE_ENABLED === 'true' || true
     },
 
     // Image Generation Models
@@ -190,6 +197,7 @@ export const MODELS: ModelConfig[] = [
             rateLimit: 50,
         },
         available: true,
+        enabled: process.env.NEXT_PUBLIC_OPENAI_ENABLED === 'true' || true
     },
 ];
 
@@ -231,7 +239,7 @@ export function getModelsByCapability(capability: string): ModelConfig[] {
 /**
  * Default model ID
  */
-export const DEFAULT_MODEL_ID = 'gpt-4o';
+export const DEFAULT_MODEL_ID = 'gpt-3.5-turbo';
 
 /**
  * Get default model

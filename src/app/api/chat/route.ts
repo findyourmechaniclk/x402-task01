@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
         const inputTokens = Math.ceil(message.length / 4);
         const outputTokens = Math.ceil(aiResponse.text.length / 4);
         const actualCost = modelConfig.pricing.baseRequest +
-            (inputTokens * modelConfig.pricing.inputToken) +
-            (outputTokens * modelConfig.pricing.outputToken);
+            (inputTokens * modelConfig.pricing.perToken.input) +
+            (outputTokens * modelConfig.pricing.perToken.output);
 
         const response: ChatResponse = {
             success: true,
