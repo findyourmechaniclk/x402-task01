@@ -1,28 +1,28 @@
-// src/lib/x402/protocol.ts - Complete X402 protocol implementation
+// src/lib/x402/protocol.ts
 import { X402Challenge, X402PaymentData } from '@/types/x402';
 import { PaymentVerification } from '@/types/payment';
 import { verifyTransaction } from '../wallet/solana';
 import { PublicKey } from '@solana/web3.js';
-import crypto from 'crypto';
 
-// Challenge expiry time in minutes
 const CHALLENGE_EXPIRY_MINUTES = 5;
-
-// In-memory challenge store (in production, use Redis or database)
 const challengeStore = new Map<string, X402Challenge>();
 
 /**
- * Generate a unique nonce for payment challenge
+ * Generate a unique nonce using Web Crypto API (Edge runtime compatible)
  */
 export function generateNonce(): string {
-    return crypto.randomBytes(32).toString('hex');
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 /**
- * Generate a salt for additional security
+ * Generate a salt using Web Crypto API
  */
 export function generateSalt(): string {
-    return crypto.randomBytes(16).toString('hex');
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 /**
@@ -45,10 +45,7 @@ export function createPaymentChallenge(
         salt,
     };
 
-    // Store challenge for verification
     challengeStore.set(nonce, challenge);
-
-    // Clean up expired challenges
     cleanupExpiredChallenges();
 
     console.log('🎯 Created payment challenge:', { nonce, amount, recipient: recipientAddress });
@@ -65,7 +62,6 @@ export function getChallenge(nonce: string): X402Challenge | null {
         return null;
     }
 
-    // Check if challenge has expired
     if (new Date() > challenge.expiresAt) {
         challengeStore.delete(nonce);
         return null;
@@ -115,8 +111,7 @@ export function createPaymentData(challenge: X402Challenge): X402PaymentData {
 }
 
 /**
- * Verify payment signature
- * Checks if the signature is valid for the given challenge and wallet address
+ * Verify payment signature (simplified for development)
  */
 export function verifyPaymentSignature(
     challenge: string,
@@ -126,14 +121,12 @@ export function verifyPaymentSignature(
     try {
         console.log('🔍 Verifying signature for challenge:', challenge);
 
-        // Get the stored challenge
         const storedChallenge = getChallenge(challenge);
         if (!storedChallenge) {
             console.error('❌ Challenge not found or expired');
             return false;
         }
 
-        // Validate wallet address format
         try {
             new PublicKey(walletAddress);
         } catch {
@@ -141,13 +134,8 @@ export function verifyPaymentSignature(
             return false;
         }
 
-        // For development/testing, we'll accept any non-empty signature
-        // In production, implement proper Ed25519 signature verification:
-        // const messageBuffer = Buffer.from(challenge);
-        // const signatureBuffer = Buffer.from(signature, 'hex');
-        // const publicKey = new PublicKey(walletAddress);
-        // return nacl.sign.detached.verify(messageBuffer, signatureBuffer, publicKey.toBytes());
-
+        // For development: accept any non-empty signature
+        // In production, implement proper Ed25519 signature verification
         const isValid = signature.length > 0 && walletAddress.length > 0;
         console.log(isValid ? '✅ Signature verification passed' : '❌ Signature verification failed');
         return isValid;
@@ -169,7 +157,6 @@ export async function verifyPaymentTransaction(
     try {
         console.log('🔍 Verifying payment transaction:', transactionHash);
 
-        // Verify transaction exists and is confirmed
         const isConfirmed = await verifyTransaction(transactionHash);
 
         if (!isConfirmed) {
@@ -186,12 +173,6 @@ export async function verifyPaymentTransaction(
                 },
             };
         }
-
-        // In production, you would:
-        // 1. Parse transaction details
-        // 2. Verify amount matches expected amount
-        // 3. Verify recipient matches expected recipient
-        // 4. Verify sender matches claimed sender
 
         console.log('✅ Payment transaction verified');
         return {
@@ -220,32 +201,14 @@ export async function verifyPaymentTransaction(
 }
 
 /**
- * Create X402 error response
- */
-export function createX402Error(
-    error: string,
-    message: string,
-    paymentData?: X402PaymentData
-) {
-    return {
-        error,
-        message,
-        payment: paymentData,
-    };
-}
-
-/**
  * Calculate cost for a model request
- * Based on model type and estimated token count
  */
 export function calculateRequestCost(
     model: string,
     messageLength: number
 ): number {
-    // Estimate tokens (rough approximation: 1 token ≈ 4 characters)
     const estimatedTokens = Math.ceil(messageLength / 4);
 
-    // Base pricing per model (in USDC)
     const modelPricing: Record<string, { base: number; perToken: number }> = {
         'gpt-4o': { base: 0.03, perToken: 0.00001 },
         'gpt-4-turbo': { base: 0.01, perToken: 0.000005 },
@@ -258,10 +221,7 @@ export function calculateRequestCost(
     };
 
     const pricing = modelPricing[model.toLowerCase()] || { base: 0.01, perToken: 0.000005 };
-
     const cost = pricing.base + (estimatedTokens * pricing.perToken);
-
-    // Round to 4 decimal places and ensure minimum of 0.01 USDC
     const finalCost = Math.max(0.01, Math.round(cost * 10000) / 10000);
 
     console.log(`💰 Cost calculation for ${model}: ${estimatedTokens} tokens = ${finalCost} USDC`);
@@ -269,54 +229,18 @@ export function calculateRequestCost(
 }
 
 /**
- * Validate X402 headers from request
+ * Validation functions
  */
-export interface X402ValidationResult {
-    valid: boolean;
-    challenge?: string;
-    signature?: string;
-    address?: string;
-    error?: string;
+export function isValidChallenge(challenge: string): boolean {
+    return /^[a-f0-9]{32,}$/i.test(challenge);
 }
 
-export function validateX402Headers(headers: Record<string, string | undefined>): X402ValidationResult {
-    const challenge = headers['x-402-challenge'];
-    const signature = headers['x-402-signature'];
-    const address = headers['x-402-address'];
-
-    if (!challenge || !signature || !address) {
-        return {
-            valid: false,
-            error: 'Missing required X402 headers',
-        };
-    }
-
-    if (!isChallengeValid(challenge)) {
-        return {
-            valid: false,
-            error: 'Challenge not found or expired',
-        };
-    }
-
-    return {
-        valid: true,
-        challenge,
-        signature,
-        address,
-    };
+export function isValidSignature(signature: string): boolean {
+    return /^[a-f0-9]{64,}$/i.test(signature);
 }
 
-/**
- * Format X402 response headers
- */
-export function formatX402ResponseHeaders(challenge: X402Challenge): Record<string, string> {
-    return {
-        'X-402-Challenge': challenge.nonce,
-        'X-402-Price': challenge.amount.toString(),
-        'X-402-Currency': 'USDC',
-        'X-402-Recipient': challenge.recipient,
-        'X-402-Expiry': challenge.expiresAt.toISOString(),
-    };
+export function isValidAddress(address: string): boolean {
+    return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
 }
 
 /**
@@ -324,30 +248,6 @@ export function formatX402ResponseHeaders(challenge: X402Challenge): Record<stri
  */
 export function createSignatureMessage(challenge: string, walletAddress: string): string {
     return `X402 Payment Authorization\nChallenge: ${challenge}\nWallet: ${walletAddress}\nTimestamp: ${Date.now()}`;
-}
-
-/**
- * Validate X402 challenge format
- */
-export function isValidChallenge(challenge: string): boolean {
-    // Challenge should be a hex string of at least 32 characters
-    return /^[a-f0-9]{32,}$/i.test(challenge);
-}
-
-/**
- * Validate X402 signature format
- */
-export function isValidSignature(signature: string): boolean {
-    // Signature should be a hex string of at least 64 characters
-    return /^[a-f0-9]{64,}$/i.test(signature);
-}
-
-/**
- * Validate Solana address format (basic check)
- */
-export function isValidAddress(address: string): boolean {
-    // Solana addresses are base58 strings of 32-44 characters
-    return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
 }
 
 /**
@@ -385,52 +285,6 @@ export function createPaymentRequiredResponse(
         status: 402,
         headers,
     });
-}
-
-/**
- * Create successful payment response
- */
-export function createSuccessResponse(
-    data: unknown,
-    challenge: string,
-    transactionHash: string
-): Response {
-    const headers = {
-        'X-402-Validated': 'true',
-        'X-402-Challenge': challenge,
-        'X-402-Transaction': transactionHash,
-        'Content-Type': 'application/json',
-    };
-
-    return new Response(JSON.stringify(data), {
-        status: 200,
-        headers,
-    });
-}
-
-/**
- * Create error response
- */
-export function createErrorResponse(
-    message: string,
-    status: number = 400,
-    code: string = 'ERROR'
-): Response {
-    return new Response(
-        JSON.stringify({
-            success: false,
-            error: {
-                code,
-                message,
-            },
-        }),
-        {
-            status,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        }
-    );
 }
 
 /**

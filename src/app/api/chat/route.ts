@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getModelById } from '@/config/models';
 import type { ChatRequest, ChatResponse } from '@/types/chat';
 
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
     try {
         // If we reach here, the X402 middleware has already verified payment

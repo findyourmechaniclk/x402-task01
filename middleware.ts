@@ -1,14 +1,14 @@
-// middleware.ts - Next.js middleware using official x402-next package
+// middleware.ts
 import { NextRequest } from 'next/server';
 import { paymentMiddleware, SolanaAddress } from 'x402-next';
 
 // Configure the payment middleware with your Solana wallet address and routes
 const x402Middleware = paymentMiddleware(
-    `${process.env.X402_RECIPIENT_WALLET}` as SolanaAddress, // Solana wallet address to receive payments
+    process.env.X402_RECIPIENT_WALLET as SolanaAddress,
     {
         '/api/chat': {
-            price: '$0.01', // USDC amount in dollars
-            network: 'solana-devnet', // Use solana-devnet for testing
+            price: '$0.01',
+            network: 'solana-devnet',
             config: {
                 description: 'AI Chat Request',
                 mimeType: 'application/json'
