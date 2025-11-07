@@ -1,23 +1,17 @@
-// src/app/api/chat/route.ts
+// src/app/api/chat/route.ts - Simplified chat API that works with X402 middleware
 import { NextRequest, NextResponse } from 'next/server';
-import { x402PaymentMiddleware } from '@/middleware/x402';
 import { getModelById } from '@/config/models';
 import type { ChatRequest, ChatResponse } from '@/types/chat';
 
 export async function POST(request: NextRequest) {
     try {
-        // Apply X402 payment verification middleware
-        const paymentResponse = await x402PaymentMiddleware(request);
-        if (paymentResponse) {
-            // Payment required or failed - return the payment response
-            return paymentResponse;
-        }
+        // If we reach here, the X402 middleware has already verified payment
+        console.log('🔥 Chat API: Payment verified by X402 middleware');
 
-        // Payment verified - proceed with chat request
         const body: ChatRequest = await request.json();
-        const { model, message, conversationId, systemPrompt } = body;
+        const { model, message, systemPrompt } = body;
 
-        // Validate request (already done in middleware, but double-check)
+        // Validate request
         if (!model || !message) {
             return NextResponse.json({
                 success: false,
@@ -81,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// AI Model calling functions (same as existing implementation)
+// AI Model calling functions
 async function callAIModel(
     provider: string,
     model: string,
