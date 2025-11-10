@@ -1,0 +1,35 @@
+ishara@LOQ-15AHP9:~$ spl-token create-token --decimals 6
+Creating token 4JDKDsMYPjtfXLFk9KpvoRmG37pgU3SnU5KWCoFzNaUZ under program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+
+Address:  4JDKDsMYPjtfXLFk9KpvoRmG37pgU3SnU5KWCoFzNaUZ
+Decimals:  6
+
+Signature: q7Zs7JkBFay6JvNCKHibLV7T4THMZi1qzuaQTPjjvEAVJiVBVwjKfpurrGREjQsWL49jYyMymEthxvDisK8jTr6
+
+ishara@LOQ-15AHP9:~$ MINT=4JDKDsMYPjtfXLFk9KpvoRmG37pgU3SnU5KWCoFzNaUZ
+ishara@LOQ-15AHP9:~$ OWNER1=HpgGXL18VBvnvDg5jLWcLruVFUFQDKG71iXrAUj7nmJX
+ishara@LOQ-15AHP9:~$ OWNER2=35JSGee3Pkd6yviPUni6TZnascWaztAsRaSkPCGxrZVv
+
+ishara@LOQ-15AHP9:~$ spl-token create-account $MINT --owner $OWNER1 --fee-payer ~/.config/solana/id.json
+Creating account J5B65nR8ijTgmeSqmM8nNQvvK1nBGNkEAmKRsoG3ScxR
+
+Signature: 5DvJHbddvhK4ju4UXAaf7aVzAib963pGWq6L8nvPr6F2dUQAbpD1G2WryQismo9L5ZDX1NZRnPLhby4qiGTszMpB
+
+ishara@LOQ-15AHP9:~$ spl-token create-account $MINT --owner $OWNER2 --fee-payer ~/.config/solana/id.json
+Creating account ECCrFx7FyRA2FVamxbBmBPYNJWxnD5FKVMt42oKVHQFU
+
+Signature: 67mZ2UD4yGQKwueGxzh6CRgzXAVthV6wp7faMgFuVQ24TUeuhRSTCikQFrcJCApVkjbLLe7cYZ2hvcxm5pAKTa8y
+
+ishara@LOQ-15AHP9:~$ spl-token mint $MINT 100 --recipient-owner $OWNER1
+Minting 100 tokens
+  Token: 4JDKDsMYPjtfXLFk9KpvoRmG37pgU3SnU5KWCoFzNaUZ
+  Recipient: J5B65nR8ijTgmeSqmM8nNQvvK1nBGNkEAmKRsoG3ScxR
+
+Signature: 4w1GqTVRjoVge2EY6KJHUipBFdUoH6YN7rk3Jf4YYdiAQfcAWWbCigvQRGGT7XGB7ptdr7gzQLyxGL2iJKuwSFwA
+
+ishara@LOQ-15AHP9:~$ spl-token mint $MINT 100 --recipient-owner $OWNER2
+Minting 100 tokens
+  Token: 4JDKDsMYPjtfXLFk9KpvoRmG37pgU3SnU5KWCoFzNaUZ
+  Recipient: ECCrFx7FyRA2FVamxbBmBPYNJWxnD5FKVMt42oKVHQFU
+
+Signature: 4W1vs56Nb9YBNiGdniDd818BTFmWC6fyNfWoxNkU56TXJgy5xbTGFcgK7PpT2RfF7cbkqfqr6bTA8pdhseJubUyc

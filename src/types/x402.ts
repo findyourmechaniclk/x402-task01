@@ -1,8 +1,7 @@
-// types/x402.ts
+// src/types/x402.ts
 /**
- * X402 Protocol type definitions
+ * X402 Protocol Type Definitions
  */
-
 export interface X402Headers {
     'X-402-Challenge'?: string;
     'X-402-Signature'?: string;
@@ -36,4 +35,17 @@ export interface X402Error {
     error: string;
     message: string;
     payment?: X402PaymentData;
+}
+
+export interface PaymentVerification {
+    success: boolean;
+    verified: boolean;
+    transactionHash: string;
+    amount: number;
+    balance: number;
+    timestamp: string;
+    error?: {
+        code: string;
+        message: string;
+    };
 }

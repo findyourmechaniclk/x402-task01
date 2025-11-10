@@ -31,6 +31,7 @@ export interface ModelConfig {
     pricing: ModelPricing;
     limits: ModelLimits;
     available: boolean;
+    enabled?: boolean;
     deprecated?: boolean;
 }
 
