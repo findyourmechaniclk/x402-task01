@@ -1,16 +1,17 @@
 // src/app/chat/page.tsx - Updated chat page with X402 payment integration
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
 import { useX402Payment, usePaymentRequired } from '@/hooks/useX402Payment';
 import { WalletButton } from '@/components/WalletConnect/WalletButton';
 import { MessageSquare, Image as ImageIcon, Sparkles, Send, AlertCircle, Loader2 } from 'lucide-react';
 import type { ModelConfig } from '@/types/models';
 import type { Message } from '@/types/chat';
+import type { X402PaymentData } from '@/types/x402';
 
 export default function ChatPage() {
-    const { address, connected, balance } = useWallet();
+    const { connected, balance } = useWallet();
     const { isPaying, paymentError, processPayment, clearError } = useX402Payment();
     const { checkPaymentRequired } = usePaymentRequired();
 
@@ -19,7 +20,7 @@ export default function ChatPage() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
-    const [pendingPayment, setPendingPayment] = useState<any>(null);
+    const [pendingPayment, setPendingPayment] = useState<X402PaymentData | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {

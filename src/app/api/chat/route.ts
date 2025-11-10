@@ -1,7 +1,7 @@
 // src/app/api/chat/route.ts - Simplified chat API that works with X402 middleware
 import { NextRequest, NextResponse } from 'next/server';
 import { getModelById } from '@/config/models';
-import type { ChatRequest, ChatResponse } from '@/types/chat';
+import type { ChatRequest, ChatResponse, MessageRole } from '@/types/chat';
 
 export const runtime = 'nodejs';
 
@@ -78,13 +78,18 @@ export async function POST(request: NextRequest) {
 }
 
 // AI Model calling functions
+type ChatProviderMessage = {
+    role: MessageRole;
+    content: string;
+};
+
 async function callAIModel(
     provider: string,
     model: string,
     message: string,
     systemPrompt?: string
 ): Promise<{ text: string }> {
-    const messages = [];
+    const messages: ChatProviderMessage[] = [];
 
     if (systemPrompt) {
         messages.push({ role: 'system', content: systemPrompt });
@@ -103,7 +108,7 @@ async function callAIModel(
     }
 }
 
-async function callOpenAI(model: string, messages: any[]): Promise<{ text: string }> {
+async function callOpenAI(model: string, messages: ChatProviderMessage[]): Promise<{ text: string }> {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
         throw new Error('OpenAI API key not configured');
@@ -162,7 +167,7 @@ async function callGemini(model: string, message: string): Promise<{ text: strin
     return { text: data.candidates[0]?.content?.parts[0]?.text || 'No response generated' };
 }
 
-async function callClaude(model: string, messages: any[]): Promise<{ text: string }> {
+async function callClaude(model: string, messages: ChatProviderMessage[]): Promise<{ text: string }> {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
         throw new Error('Claude API key not configured');

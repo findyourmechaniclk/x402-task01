@@ -5,7 +5,7 @@
  * AI Model Configurations
  * Defines available models, pricing, and limits
  */
-import { ModelConfig } from '@/types/models';
+import { ModelConfig, ModelCapability } from '@/types/models';
 
 export const MODELS: ModelConfig[] = [
     // OpenAI Models
@@ -227,10 +227,10 @@ export function getModelsByProvider(provider: string): ModelConfig[] {
 /**
  * Get models by capability
  */
-export function getModelsByCapability(capability: string): ModelConfig[] {
+export function getModelsByCapability(capability: ModelCapability): ModelConfig[] {
     return MODELS.filter(
         model =>
-            model.capabilities.includes(capability as any) &&
+            model.capabilities.includes(capability) &&
             model.available &&
             !model.deprecated
     );

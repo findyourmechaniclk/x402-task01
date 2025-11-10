@@ -6,6 +6,7 @@ import { useWallet } from '@/contexts/WalletContext';
 import { signMessage, signTransaction } from '@/lib/wallet/phantom';
 import { createUSDCTransferTransaction, sendSignedTransaction, checkUSDCBalance } from '@/lib/wallet/transfers';
 import { PublicKey } from '@solana/web3.js';
+import type { ChatResponse } from '@/types/chat';
 
 interface PaymentData {
     challenge: string;
@@ -18,7 +19,7 @@ interface PaymentData {
 interface UseX402PaymentReturn {
     isPaying: boolean;
     paymentError: string | null;
-    processPayment: (paymentData: PaymentData, message: string, model: string) => Promise<any>;
+    processPayment: (paymentData: PaymentData, message: string, model: string) => Promise<ChatResponse | null>;
     clearError: () => void;
 }
 
@@ -132,7 +133,7 @@ export function useX402Payment(): UseX402PaymentReturn {
         } finally {
             setIsPaying(false);
         }
-    }, [connected, address, refreshBalance]);
+    }, [connected, address, refreshBalance, balance]);
 
     const clearError = useCallback(() => {
         setPaymentError(null);
@@ -149,10 +150,10 @@ export function useX402Payment(): UseX402PaymentReturn {
 /**
  * Hook to check if payment is required for a request
  */
-export function usePaymentRequired() {
+export function usePaymentRequired<T extends object = Record<string, unknown>>() {
     const checkPaymentRequired = useCallback(async (
         endpoint: string,
-        body: any
+        body: T
     ): Promise<PaymentData | null> => {
         try {
             console.log('🔍 Checking if payment is required for:', endpoint);
