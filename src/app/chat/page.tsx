@@ -9,11 +9,13 @@ import { MessageSquare, Image as ImageIcon, Sparkles, Send, AlertCircle, Loader2
 import type { ModelConfig } from '@/types/models';
 import type { Message } from '@/types/chat';
 import type { X402PaymentData } from '@/types/x402';
+import { usePaymentEstimation } from '@/hooks/usePaymentEstimation';
 
 export default function ChatPage() {
     const { connected, balance } = useWallet();
     const { isPaying, paymentError, processPayment, clearError } = useX402Payment();
     const { checkPaymentRequired } = usePaymentRequired();
+    const { estimatePayment } = usePaymentEstimation();
 
     const [models, setModels] = useState<ModelConfig[]>([]);
     const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
@@ -111,7 +113,7 @@ export default function ChatPage() {
     };
 
     const selectedModelConfig = models.find(m => m.id === selectedModel);
-    const estimatedCost = selectedModelConfig?.pricing.baseRequest || 0.01;
+    const estimatedCost = selectedModelConfig ? estimatePayment(selectedModel, input.length).amount : 0.01;
 
     return (
         <div className="flex flex-col h-screen bg-black text-white">

@@ -3,7 +3,9 @@ import { X402Challenge, X402PaymentData } from '@/types/x402';
 import { PaymentVerification } from '@/types/payment';
 import { verifyTransaction } from '../wallet/solana';
 import { PublicKey } from '@solana/web3.js';
+import { getModelById } from '@/config/models';
 
+const X402_MIN_PAYMENT = Number(`${process.env.X402_MIN_PAYMENT}` || '0.01'); // Minimum 0.01 USDC
 const CHALLENGE_EXPIRY_MINUTES = 5;
 const challengeStore = new Map<string, X402Challenge>();
 
@@ -201,7 +203,7 @@ export async function verifyPaymentTransaction(
 }
 
 /**
- * Calculate cost for a model request
+ * Calculate cost for a model request using actual model configuration
  */
 export function calculateRequestCost(
     model: string,
@@ -209,20 +211,21 @@ export function calculateRequestCost(
 ): number {
     const estimatedTokens = Math.ceil(messageLength / 4);
 
-    const modelPricing: Record<string, { base: number; perToken: number }> = {
-        'gpt-4o': { base: 0.03, perToken: 0.00001 },
-        'gpt-4-turbo': { base: 0.01, perToken: 0.000005 },
-        'gpt-3.5-turbo': { base: 0.005, perToken: 0.000001 },
-        'gemini-2.0-flash': { base: 0.01, perToken: 0.000005 },
-        'gemini-1.5-pro': { base: 0.02, perToken: 0.00001 },
-        'claude-3-5-sonnet': { base: 0.01, perToken: 0.000005 },
-        'claude-3-opus': { base: 0.05, perToken: 0.00002 },
-        'dall-e-3': { base: 0.15, perToken: 0 },
-    };
+    // Get actual model configuration
+    const modelConfig = getModelById(model);
 
-    const pricing = modelPricing[model.toLowerCase()] || { base: 0.01, perToken: 0.000005 };
-    const cost = pricing.base + (estimatedTokens * pricing.perToken);
-    const finalCost = Math.max(0.01, Math.round(cost * 10000) / 10000);
+    if (!modelConfig) {
+        console.warn(`Model ${model} not found, using default pricing`);
+        return 0.01; // fallback
+    }
+
+    // Use actual model pricing from config
+    const cost = modelConfig.pricing.baseRequest +
+        (estimatedTokens * modelConfig.pricing.perToken.input);
+
+    console.log("Allowed minimum payment : " + X402_MIN_PAYMENT)
+
+    const finalCost = Math.max(X402_MIN_PAYMENT, Math.round(cost * 100000) / 100000); // Support smaller amounts
 
     console.log(`💰 Cost calculation for ${model}: ${estimatedTokens} tokens = ${finalCost} USDC`);
     return finalCost;

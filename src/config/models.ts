@@ -17,12 +17,12 @@ export const MODELS: ModelConfig[] = [
         description: 'Most capable GPT-4 model, great for complex tasks',
         capabilities: ['text', 'reasoning', 'analysis'],
         pricing: {
-            baseRequest: 0.03,
+            baseRequest: 0.0001,
             perToken: {
-                input: 0.00001,
-                output: 0.00003,
+                input: 0.000001,
+                output: 0.000001,
             },
-            maxRequest: 0.15,
+            maxRequest: 0.0005,
         },
         limits: {
             maxTokens: 4096,
@@ -40,12 +40,12 @@ export const MODELS: ModelConfig[] = [
         description: 'Faster GPT-4 with lower cost',
         capabilities: ['text', 'reasoning', 'analysis'],
         pricing: {
-            baseRequest: 0.01,
+            baseRequest: 0.0001,
             perToken: {
-                input: 0.000005,
-                output: 0.000015,
+                input: 0.000001,
+                output: 0.000001,
             },
-            maxRequest: 0.03,
+            maxRequest: 0.0005,
         },
         limits: {
             maxTokens: 4096,
@@ -63,12 +63,12 @@ export const MODELS: ModelConfig[] = [
         description: 'Fast and affordable for simple tasks',
         capabilities: ['text'],
         pricing: {
-            baseRequest: 0.005,
+            baseRequest: 0.0001,
             perToken: {
                 input: 0.000001,
-                output: 0.000002,
+                output: 0.000001,
             },
-            maxRequest: 0.01,
+            maxRequest: 0.0005,
         },
         limits: {
             maxTokens: 4096,
@@ -88,12 +88,12 @@ export const MODELS: ModelConfig[] = [
         description: 'Fast and efficient multimodal model',
         capabilities: ['text', 'vision', 'image'],
         pricing: {
-            baseRequest: 0.01,
+            baseRequest: 0.0001,
             perToken: {
-                input: 0.000005,
-                output: 0.000015,
+                input: 0.000001,
+                output: 0.000001,
             },
-            maxRequest: 0.10,
+            maxRequest: 0.0005,
         },
         limits: {
             maxTokens: 8192,
@@ -111,12 +111,12 @@ export const MODELS: ModelConfig[] = [
         description: 'Advanced multimodal model with large context',
         capabilities: ['text', 'vision', 'reasoning', 'analysis'],
         pricing: {
-            baseRequest: 0.02,
+            baseRequest: 0.0001,
             perToken: {
-                input: 0.00001,
-                output: 0.00003,
+                input: 0.000001,
+                output: 0.000001,
             },
-            maxRequest: 0.10,
+            maxRequest: 0.0005,
         },
         limits: {
             maxTokens: 8192,
@@ -136,12 +136,12 @@ export const MODELS: ModelConfig[] = [
         description: 'Balanced performance and speed',
         capabilities: ['text', 'reasoning', 'analysis'],
         pricing: {
-            baseRequest: 0.01,
+            baseRequest: 0.0001,
             perToken: {
-                input: 0.000005,
-                output: 0.000015,
+                input: 0.000001,
+                output: 0.000001,
             },
-            maxRequest: 0.05,
+            maxRequest: 0.0005,
         },
         limits: {
             maxTokens: 8192,
@@ -159,12 +159,12 @@ export const MODELS: ModelConfig[] = [
         description: 'Most capable Claude model for complex tasks',
         capabilities: ['text', 'reasoning', 'analysis'],
         pricing: {
-            baseRequest: 0.05,
+            baseRequest: 0.0001,
             perToken: {
-                input: 0.00002,
-                output: 0.00006,
+                input: 0.000001,
+                output: 0.000001,
             },
-            maxRequest: 0.15,
+            maxRequest: 0.0005,
         },
         limits: {
             maxTokens: 4096,
@@ -184,12 +184,12 @@ export const MODELS: ModelConfig[] = [
         description: 'Advanced image generation model',
         capabilities: ['image'],
         pricing: {
-            baseRequest: 0.15,
+            baseRequest: 0.0001,
             perToken: {
-                input: 0,
-                output: 0,
+                input: 0.000001,
+                output: 0.000001,
             },
-            maxRequest: 0.20,
+            maxRequest: 0.0005,
         },
         limits: {
             maxTokens: 0,

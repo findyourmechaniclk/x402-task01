@@ -106,7 +106,7 @@ export function formatSolBalance(balance: number, decimals = 4): string {
 }
 
 /** Format USDC for display (defaults to 2 decimal places for fiat‑like tokens). */
-export function formatUsdcBalance(balance: number, decimals = 2): string {
+export function formatUsdcBalance(balance: number, decimals = 4): string {
     return balance.toFixed(decimals);
 }
 
