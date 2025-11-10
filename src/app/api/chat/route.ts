@@ -1,4 +1,4 @@
-// src/app/api/chat/route.ts - Simplified chat API that works with X402 middleware
+// src/app/api/chat/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getModelById } from '@/config/models';
 import type { ChatRequest, ChatResponse, MessageRole } from '@/types/chat';
@@ -41,18 +41,22 @@ export async function POST(request: NextRequest) {
         // Call appropriate AI model
         const aiResponse = await callAIModel(modelConfig.provider, model, message, systemPrompt);
 
-        // Calculate actual cost based on response
-        const inputTokens = Math.ceil(message.length / 4);
+        // Calculate actual cost based on real token usage
+        const inputTokens = Math.ceil(message.length / 4); // Rough approximation
         const outputTokens = Math.ceil(aiResponse.text.length / 4);
+
         const actualCost = modelConfig.pricing.baseRequest +
             (inputTokens * modelConfig.pricing.perToken.input) +
             (outputTokens * modelConfig.pricing.perToken.output);
+
+        // Round to 4 decimal places
+        const finalCost = Math.round(actualCost * 10000) / 10000;
 
         const response: ChatResponse = {
             success: true,
             response: aiResponse.text,
             cost: {
-                amount: Math.round(actualCost * 10000) / 10000,
+                amount: finalCost,
                 currency: 'USDC',
                 tokens: {
                     input: inputTokens,
@@ -62,7 +66,7 @@ export async function POST(request: NextRequest) {
             timestamp: new Date().toISOString()
         };
 
-        console.log(`✅ Chat response generated: ${outputTokens} tokens, ${actualCost} USDC`);
+        console.log(`✅ Chat response generated: ${outputTokens} tokens, ${finalCost} USDC`);
         return NextResponse.json(response);
 
     } catch (error) {

@@ -1,7 +1,7 @@
-// src/app/chat/page.tsx - Updated chat page with X402 payment integration
+// src/app/chat/page.tsx - Updated cost calculation section
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
 import { useX402Payment, usePaymentRequired } from '@/hooks/useX402Payment';
 import { WalletButton } from '@/components/WalletConnect/WalletButton';
@@ -52,7 +52,7 @@ export default function ChatPage() {
         }
     }
 
-    const addMessage = (role: 'user' | 'assistant' | 'error', content: string, cost: number = 0.01) => {
+    const addMessage = (role: 'user' | 'assistant' | 'error', content: string, cost: number = 0) => {
         const newMessage: Message = {
             id: Date.now().toString(),
             conversationId: 'default',
@@ -69,8 +69,10 @@ export default function ChatPage() {
         if (!input.trim() || !connected || loading || isPaying) return;
 
         const userMessage = input;
+        const estimatedCost = estimatePayment(selectedModel, userMessage.length).amount;
+
         setInput('');
-        addMessage('user', userMessage);
+        addMessage('user', userMessage, estimatedCost); // Show estimated cost for user message
         setLoading(true);
         clearError();
 
@@ -92,6 +94,7 @@ export default function ChatPage() {
                 setPendingPayment(null);
 
                 if (result && result.success) {
+                    // Use actual cost from API response
                     addMessage('assistant', result.response, result.cost?.amount || paymentData.amount);
                     console.log('✅ Payment successful, response received');
                 } else {
@@ -112,8 +115,11 @@ export default function ChatPage() {
         }
     };
 
+    // Calculate dynamic cost estimation based on current input
     const selectedModelConfig = models.find(m => m.id === selectedModel);
-    const estimatedCost = selectedModelConfig ? estimatePayment(selectedModel, input.length).amount : 0.01;
+    const estimatedCost = selectedModelConfig && input.length > 0
+        ? estimatePayment(selectedModel, input.length).amount
+        : selectedModelConfig?.pricing.baseRequest || 0.01;
 
     return (
         <div className="flex flex-col h-screen bg-black text-white">
@@ -128,12 +134,12 @@ export default function ChatPage() {
 
                 <div className="flex items-center gap-4">
                     {/* Balance Display */}
-                    {connected && balance && (
+                    {/* {connected && balance && (
                         <div className="flex items-center gap-2 px-4 py-2 bg-emerald-900/30 rounded-lg border border-emerald-500/30">
                             <Sparkles className="w-4 h-4 text-emerald-400" />
-                            <span className="text-sm">{balance.usdc.toFixed(3)} USDC</span>
+                            <span className="text-sm">{balance.usdc.toFixed(4)} USDC</span>
                         </div>
-                    )}
+                    )} */}
 
                     <WalletButton />
                 </div>
@@ -145,7 +151,7 @@ export default function ChatPage() {
                     <button className="flex items-center gap-2 px-4 py-2 bg-emerald-900/30 rounded-lg border border-emerald-500/50 text-emerald-400">
                         <MessageSquare className="w-4 h-4" />
                         Chat
-                        <span className="text-xs">${estimatedCost}</span>
+                        <span className="text-xs">${estimatedCost.toFixed(4)}</span>
                     </button>
                     <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-700 text-gray-400 hover:border-gray-600" disabled>
                         <ImageIcon className="w-4 h-4" />
@@ -163,7 +169,7 @@ export default function ChatPage() {
                     {models.length > 0 ? (
                         models.map(model => (
                             <option key={model.id} value={model.id}>
-                                {model.name}
+                                {model.name} (${model.pricing.baseRequest})
                             </option>
                         ))
                     ) : (
@@ -182,7 +188,7 @@ export default function ChatPage() {
                         </span>
                         {pendingPayment && (
                             <span className="text-xs">
-                                (${pendingPayment.amount} USDC)
+                                (${pendingPayment.amount.toFixed(4)} USDC)
                             </span>
                         )}
                     </div>
@@ -222,8 +228,7 @@ export default function ChatPage() {
 
                 {messages.map(msg => (
                     <div key={msg.id} className="flex items-start gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-purple-600' : 'bg-emerald-600'
-                            }`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-purple-600' : 'bg-emerald-600'}`}>
                             {msg.role === 'user' ? '👤' : '🤖'}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -233,7 +238,7 @@ export default function ChatPage() {
                                 </span>
                                 {msg.cost > 0 && (
                                     <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded">
-                                        ${msg.cost.toFixed(3)}
+                                        ${msg.cost.toFixed(4)}
                                     </span>
                                 )}
                             </div>
@@ -289,10 +294,10 @@ export default function ChatPage() {
 
                 {selectedModelConfig && (
                     <div className="mt-2 text-xs text-gray-500 flex items-center justify-between">
-                        <span>Using {selectedModelConfig.name} • ${selectedModelConfig.pricing.baseRequest} per request</span>
+                        <span>Using {selectedModelConfig.name} • Base: ${selectedModelConfig.pricing.baseRequest} • Est: ${estimatedCost.toFixed(4)}</span>
                         {connected && balance && (
                             <span className="text-emerald-400">
-                                Balance: {balance.usdc.toFixed(3)} USDC
+                                Balance: {balance.usdc.toFixed(4)} USDC
                             </span>
                         )}
                     </div>
