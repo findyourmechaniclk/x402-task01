@@ -124,7 +124,7 @@ export function WalletButton() {
     // Error state: allow retrying the connection
     if (wallet.error) {
         return (
-            <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-row-reverse items-end gap-2">
                 <button
                     onClick={connect}
                     className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
