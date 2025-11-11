@@ -1,4 +1,4 @@
-// middleware.ts
+// middleware.ts - Official X402 implementation
 import { NextRequest } from 'next/server';
 import { paymentMiddleware, SolanaAddress } from 'x402-next';
 
@@ -8,9 +8,9 @@ const x402Middleware = paymentMiddleware(
     {
         '/api/chat': {
             price: '$0.01',
-            network: 'solana-devnet',
+            network: 'solana',
             config: {
-                description: 'AI Chat Request',
+                description: 'AI Chat Request - Pay per message',
                 mimeType: 'application/json'
             }
         }
