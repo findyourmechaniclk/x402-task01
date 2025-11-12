@@ -52,7 +52,7 @@ export function createX402Middleware() {
 
                 try {
                     // cost is in USDC (decimal). Convert to atomic units (e.g., 6 decimals)
-                    const expectedAmountAtomic = BigInt(Math.round(Number(cost) * 10 ** USDC_DECIMALS));
+                    const expectedAmountAtomic = BigInt(Math.floor(Number(cost) * 10 ** USDC_DECIMALS));
 
                     const ok = await verifyTransactionOnChain({
                         signature: transactionHash,
