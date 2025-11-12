@@ -431,7 +431,7 @@ export default function ChatPage() {
 
                 {/* Payment Status - Fixed with backdrop blur */}
                 {(isPaying || pendingPayment) && (
-                    <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-xl border-b border-yellow-500/30">
+                    <div className="sticky top-19 z-30 bg-black/80 backdrop-blur-xl border-b border-yellow-500/30">
                         <div className="px-10 py-3 bg-yellow-900/20">
                             <div className="flex items-center gap-2 text-yellow-400">
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -450,7 +450,7 @@ export default function ChatPage() {
 
                 {/* Payment Error - Fixed with backdrop blur */}
                 {paymentError && (
-                    <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-xl border-b border-red-500/30">
+                    <div className="sticky top-19 z-30 bg-black/80 backdrop-blur-xl border-b border-red-500/30">
                         <div className="px-10 py-3 bg-red-900/20">
                             <div className="flex items-center gap-2 text-red-400">
                                 <AlertCircle className="w-4 h-4" />
