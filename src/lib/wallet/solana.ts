@@ -14,10 +14,29 @@ import {
     ParsedAccountData,
     ParsedInstruction,
 } from '@solana/web3.js';
-import type { Finality } from '@solana/web3.js';
+import type { Finality, PublicKey as Web3PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { WalletBalance } from '@/types/wallet';
 import { SolanaNetwork } from '@/types/common';
+
+interface ParsedSplTokenTransferInfo {
+    destination?: string;
+    authority?: string;
+    mint?: string;
+    amount?: string;
+    source?: string;
+    tokenAmount?: { amount?: string };
+}
+
+interface ParsedSplTokenTransferLike {
+    // web3's parsed.type is a string; we only care about these two variants here
+    type?: 'transfer' | 'transferChecked' | string;
+    info?: ParsedSplTokenTransferInfo;
+}
+
+interface ParsedAccountKey {
+    pubkey: Web3PublicKey;
+}
 
 // USDC Mint address
 const USDC_MINT_ADDRESS = `${process.env.NEXT_PUBLIC_USDC_MINT}`;
@@ -386,8 +405,8 @@ export async function verifyTransactionOnChain({
 
     // Iterate transfers; accept the first one that fully matches (mint, ATA, amount>=)
     for (const ix of tokenIxs) {
-        const parsed: any = (ix as ParsedInstruction).parsed;
-        const kind: string = parsed?.type;
+        const parsed = (ix as ParsedInstruction).parsed as ParsedSplTokenTransferLike;
+        const kind: string | undefined = parsed?.type;
 
         // Normalized fields by kind
         let mint: string | undefined;
@@ -468,8 +487,8 @@ export async function verifyTransactionOnChain({
         // 1) Build accountKeys array (base58) to index into token balance entries
         const accountKeys: string[] =
             // Parsed tx has objects with {pubkey: string}
-            (tx.transaction.message.accountKeys as any[]).map((k) =>
-                typeof k === 'string' ? k : k.pubkey
+            (tx.transaction.message.accountKeys as (string | ParsedAccountKey)[]).map((k) =>
+                typeof k === 'string' ? k : k.pubkey.toBase58()
             );
 
         // 2) Find the expected ATA index in the message
