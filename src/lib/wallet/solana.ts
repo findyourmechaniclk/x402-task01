@@ -12,6 +12,8 @@ import {
     clusterApiUrl,
     Commitment,
     ParsedAccountData,
+    ParsedInstruction,
+    Finality
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { WalletBalance } from '@/types/wallet';
@@ -155,7 +157,9 @@ export async function verifyTransaction(
 ): Promise<boolean> {
     try {
         const connection = getConnection(commitment);
-        const status = await connection.getSignatureStatus(signature);
+        const status = await connection.getSignatureStatus(signature, {
+            searchTransactionHistory: true,
+        });
 
         if (!status || !status.value) {
             return false;
@@ -315,5 +319,101 @@ export async function getCurrentSlot(): Promise<number> {
     } catch (error) {
         console.error('Failed to get current slot:', error);
         throw new Error('Unable to retrieve blockchain information.');
+    }
+}
+
+type VerifyOnChainParams = {
+    signature: string;
+    expectedRecipient: string; // merchant wallet (base58)
+    expectedMint: string;      // USDC mint (env)
+    expectedAmount: bigint;    // smallest units, e.g. USDC: 6 decimals
+    commitment?: Commitment;
+};
+
+/**
+ * Parse the transaction and ensure it's an SPL USDC transfer
+ * to the expected recipient with at least expectedAmount.
+ */
+export async function verifyTransactionOnChain({
+    signature,
+    expectedRecipient,
+    expectedMint,
+    expectedAmount,
+    commitment = 'confirmed',
+}: VerifyOnChainParams): Promise<boolean> {
+    const connection = getConnection(commitment);
+
+    const tx = await connection.getParsedTransaction(signature, {
+        commitment: toFinality(commitment),
+        maxSupportedTransactionVersion: 0,
+    });
+
+    if (!tx || tx.meta?.err) return false;
+
+    // Find an spl-token transferChecked instruction
+    const ix = tx.transaction.message.instructions.find(
+        (ix): ix is ParsedInstruction =>
+            'parsed' in ix &&
+            (ix as ParsedInstruction).program === 'spl-token' &&
+            (ix as ParsedInstruction).parsed?.type === 'transferChecked',
+    );
+
+    if (!ix) return false;
+
+    type TransferCheckedInfo = {
+        mint: string;
+        destination: string; // token account
+        tokenAmount: { amount: string; decimals: number };
+    };
+
+    const parsed = (ix as ParsedInstruction).parsed as
+        | { type: 'transferChecked'; info: TransferCheckedInfo }
+        | undefined;
+
+    if (!parsed || parsed.type !== 'transferChecked') return false;
+
+    const info = parsed.info;
+
+    if (info.mint !== expectedMint) return false;
+
+    // Destination is the recipient's token account (ATA). We at least ensure the owner matches.
+    // Many RPCs include owner on parsed token accounts in meta; fall back to a light check by
+    // reading the account owner if needed.
+    const destTokenAcc = new PublicKey(info.destination);
+    const expectedOwner = new PublicKey(expectedRecipient);
+
+    // Fetch destination account to verify its owner
+    const destAccInfo = await connection.getParsedAccountInfo(destTokenAcc, commitment);
+    const ownerFromParsed =
+        (destAccInfo.value?.data as ParsedAccountData | null)?.parsed?.info?.owner;
+    if (!ownerFromParsed || !new PublicKey(ownerFromParsed).equals(expectedOwner)) {
+        return false;
+    }
+
+    // Compare amounts (raw units)
+    const rawAmount = BigInt(info.tokenAmount.amount);
+    if (rawAmount < expectedAmount) return false;
+
+    return true;
+}
+
+
+// helper to convert Commitment → Finality
+function toFinality(commitment: Commitment): Finality {
+    switch (commitment) {
+        // legacy/alias commitments that should be treated as "confirmed"
+        case 'processed':
+        case 'recent':
+        case 'single':
+        case 'singleGossip':
+        case 'confirmed':
+            return 'confirmed';
+        // commitments that map to "finalized"
+        case 'finalized':
+        case 'root':
+        case 'max':
+            return 'finalized';
+        default:
+            return 'confirmed';
     }
 }
