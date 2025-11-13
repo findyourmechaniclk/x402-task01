@@ -6,10 +6,12 @@ import {
     calculateRequestCost,
     createPaymentData
 } from '@/lib/x402/protocol';
-import { verifyTransaction } from '@/lib/wallet/solana';
+import { verifyTransactionOnChain } from '@/lib/wallet/solana';
 import { X402Challenge } from '@/types/x402';
 
 const RECIPIENT_WALLET = process.env.X402_RECIPIENT_WALLET!;
+const USDC_MINT = process.env.NEXT_PUBLIC_USDC_MINT!;
+const USDC_DECIMALS = Number(process.env.NEXT_PUBLIC_USDC_DECIMALS || '6');
 
 export function createX402Middleware() {
     return async function x402Handler(request: NextRequest): Promise<NextResponse> {
@@ -44,22 +46,44 @@ export function createX402Middleware() {
                 return createPaymentRequiredResponse(cost, model, message);
             }
 
-            // If transaction hash is provided, verify it on blockchain
+            // If transaction hash is provided, verify it on-chain with mint/recipient/amount
             if (transactionHash) {
-                console.log('🔗 Verifying blockchain transaction:', transactionHash);
+                console.log('🔗 Verifying blockchain transaction (USDC, recipient, amount):', transactionHash);
 
                 try {
-                    const isConfirmed = await verifyTransaction(transactionHash);
-                    if (!isConfirmed) {
-                        console.log('❌ Transaction not confirmed on blockchain');
-                        return createPaymentRequiredResponse(cost, model, message, 'Transaction not confirmed');
+                    // cost is in USDC (decimal). Convert to atomic units (e.g., 6 decimals)
+                    const expectedAmountAtomic = BigInt(Math.floor(Number(cost) * 10 ** USDC_DECIMALS));
+
+                    const ok = await verifyTransactionOnChain({
+                        signature: transactionHash,
+                        expectedRecipient: RECIPIENT_WALLET,
+                        expectedMint: USDC_MINT,
+                        expectedAmount: expectedAmountAtomic,
+                        commitment: 'confirmed',
+                    });
+
+                    if (!ok) {
+                        console.log('❌ On-chain payment does not match requirements');
+                        return createPaymentRequiredResponse(
+                            cost,
+                            model,
+                            message,
+                            'On-chain payment invalid: check mint/recipient/amount'
+                        );
                     }
-                    console.log('✅ Blockchain transaction verified');
+
+                    console.log('✅ Blockchain payment verified');
                 } catch (error) {
                     console.error('❌ Transaction verification failed:', error);
-                    return createPaymentRequiredResponse(cost, model, message, 'Transaction verification failed');
+                    return createPaymentRequiredResponse(
+                        cost,
+                        model,
+                        message,
+                        'Transaction verification failed'
+                    );
                 }
             }
+
 
             // Verify payment signature
             console.log('🔐 Verifying payment signature...');

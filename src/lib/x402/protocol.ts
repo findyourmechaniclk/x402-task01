@@ -1,7 +1,7 @@
 // src/lib/x402/protocol.ts
 import { X402Challenge, X402PaymentData } from '@/types/x402';
 import { PaymentVerification } from '@/types/payment';
-import { verifyTransaction } from '../wallet/solana';
+import { verifyTransactionOnChain } from '../wallet/solana';
 import { PublicKey } from '@solana/web3.js';
 import { getModelById } from '@/config/models';
 
@@ -152,16 +152,26 @@ export function verifyPaymentSignature(
  */
 export async function verifyPaymentTransaction(
     transactionHash: string,
-    expectedAmount: number,
-    recipientAddress: string,
-    senderAddress: string
+    expectedAmount: number,     // decimal USDC (e.g., 0.01)
+    recipientAddress: string,   // merchant wallet
+    senderAddress: string       // (optional) you can ignore or enhance to check funding account
 ): Promise<PaymentVerification> {
     try {
         console.log('🔍 Verifying payment transaction:', transactionHash);
 
-        const isConfirmed = await verifyTransaction(transactionHash);
+        const usdcMint = `${process.env.NEXT_PUBLIC_USDC_MINT}`;
+        const usdcDecimals = Number(process.env.NEXT_PUBLIC_USDC_DECIMALS || '6');
+        const expectedAmountAtomic = BigInt(Math.round(expectedAmount * 10 ** usdcDecimals));
 
-        if (!isConfirmed) {
+        const ok = await verifyTransactionOnChain({
+            signature: transactionHash,
+            expectedRecipient: recipientAddress,
+            expectedMint: usdcMint,
+            expectedAmount: expectedAmountAtomic,
+            commitment: 'confirmed',
+        });
+
+        if (!ok) {
             return {
                 success: false,
                 verified: false,
@@ -171,7 +181,7 @@ export async function verifyPaymentTransaction(
                 timestamp: new Date().toISOString(),
                 error: {
                     code: 'TRANSACTION_NOT_CONFIRMED',
-                    message: 'Transaction not found or not confirmed on blockchain',
+                    message: 'Transaction not found, failed, or does not match mint/recipient/amount',
                 },
             };
         }
@@ -201,6 +211,7 @@ export async function verifyPaymentTransaction(
         };
     }
 }
+
 
 /**
  * Calculate cost for a model request using actual model configuration

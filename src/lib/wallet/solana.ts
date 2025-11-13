@@ -12,10 +12,31 @@ import {
     clusterApiUrl,
     Commitment,
     ParsedAccountData,
+    ParsedInstruction,
 } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import type { Finality, PublicKey as Web3PublicKey } from '@solana/web3.js';
+import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { WalletBalance } from '@/types/wallet';
 import { SolanaNetwork } from '@/types/common';
+
+interface ParsedSplTokenTransferInfo {
+    destination?: string;
+    authority?: string;
+    mint?: string;
+    amount?: string;
+    source?: string;
+    tokenAmount?: { amount?: string };
+}
+
+interface ParsedSplTokenTransferLike {
+    // web3's parsed.type is a string; we only care about these two variants here
+    type?: 'transfer' | 'transferChecked' | string;
+    info?: ParsedSplTokenTransferInfo;
+}
+
+interface ParsedAccountKey {
+    pubkey: Web3PublicKey;
+}
 
 // USDC Mint address
 const USDC_MINT_ADDRESS = `${process.env.NEXT_PUBLIC_USDC_MINT}`;
@@ -155,7 +176,9 @@ export async function verifyTransaction(
 ): Promise<boolean> {
     try {
         const connection = getConnection(commitment);
-        const status = await connection.getSignatureStatus(signature);
+        const status = await connection.getSignatureStatus(signature, {
+            searchTransactionHistory: true,
+        });
 
         if (!status || !status.value) {
             return false;
@@ -315,5 +338,224 @@ export async function getCurrentSlot(): Promise<number> {
     } catch (error) {
         console.error('Failed to get current slot:', error);
         throw new Error('Unable to retrieve blockchain information.');
+    }
+}
+
+type VerifyOnChainParams = {
+    signature: string;
+    expectedRecipient: string; // merchant wallet (base58)
+    expectedMint: string;      // USDC mint (env)
+    expectedAmount: bigint;    // smallest units, e.g. USDC: 6 decimals
+    commitment?: Commitment;
+};
+
+/**
+ * Parse the transaction and ensure it's an SPL USDC transfer
+ * to the expected recipient with at least expectedAmount.
+ */
+export async function verifyTransactionOnChain({
+    signature,
+    expectedRecipient,
+    expectedMint,
+    expectedAmount,
+    commitment = 'confirmed',
+}: VerifyOnChainParams): Promise<boolean> {
+    const connection = getConnection(commitment);
+    const finality = toFinality(commitment);
+
+    const tx = await connection.getParsedTransaction(signature, {
+        commitment: finality,
+        maxSupportedTransactionVersion: 0,
+    });
+
+    if (!tx) {
+        console.warn('⛔ getParsedTransaction returned null for signature', signature);
+        return false;
+    }
+    if (tx.meta?.err) {
+        console.warn('⛔ Transaction has error in meta', tx.meta.err);
+        return false;
+    }
+
+    // Grab *all* spl-token transfers (both transferChecked and transfer)
+    const tokenIxs = tx.transaction.message.instructions.filter(
+        (ix): ix is ParsedInstruction =>
+            'parsed' in ix &&
+            (ix as ParsedInstruction).program === 'spl-token' &&
+            ((ix as ParsedInstruction).parsed?.type === 'transferChecked' ||
+                (ix as ParsedInstruction).parsed?.type === 'transfer')
+    );
+
+    if (tokenIxs.length === 0) {
+        console.warn('⛔ No spl-token transfer instructions found');
+        return false;
+    }
+
+    const merchant = new PublicKey(expectedRecipient);
+    const mintPk = new PublicKey(expectedMint);
+
+    // We’ll compute the *exact* expected ATA and compare it to the transfer destination
+    // allowOwnerOffCurve=true to be safe with PDAs/custody setups.
+    const expectedAta = await getAssociatedTokenAddress(
+        mintPk,
+        merchant,
+        true /* allowOwnerOffCurve */,
+        TOKEN_PROGRAM_ID
+    );
+
+    // Iterate transfers; accept the first one that fully matches (mint, ATA, amount>=)
+    for (const ix of tokenIxs) {
+        const parsed = (ix as ParsedInstruction).parsed as ParsedSplTokenTransferLike;
+        const kind: string | undefined = parsed?.type;
+
+        // Normalized fields by kind
+        let mint: string | undefined;
+        let destination: string | undefined;
+        let rawAmount: bigint | undefined;
+
+        if (kind === 'transferChecked') {
+            mint = parsed.info?.mint;
+            destination = parsed.info?.destination;
+            const amtStr = parsed.info?.tokenAmount?.amount;
+            rawAmount = amtStr ? BigInt(amtStr) : undefined;
+        } else if (kind === 'transfer') {
+            // For plain `transfer`, `mint` is very often omitted in parsed.info.
+            // We’ll read the destination token account to resolve its mint.
+            destination = parsed.info?.destination;
+            const amtStr = parsed.info?.amount;
+            rawAmount = amtStr ? BigInt(amtStr) : undefined;
+
+            if (destination) {
+                const destPk = new PublicKey(destination);
+                const destInfo = await connection.getParsedAccountInfo(destPk, finality);
+                const mintStr =
+                    (destInfo.value?.data as ParsedAccountData | null)?.parsed?.info?.mint;
+                mint = typeof mintStr === 'string' ? mintStr : undefined;
+            }
+        }
+
+        console.log('🔎 Found spl-token ix:', {
+            type: kind,
+            mint,
+            destination,
+            rawAmount: rawAmount?.toString(),
+            expectedMint,
+            expectedAta: expectedAta.toBase58(),
+            expectedAmount: expectedAmount.toString(),
+        });
+
+        if (!destination || rawAmount === undefined) continue;
+
+        const destPk = new PublicKey(destination);
+        const isExactAta = destPk.equals(expectedAta);
+
+        // If the destination is exactly the expected ATA, the mint is *implicitly* the expected mint.
+        // (We still prefer to compare if we have it.)
+        if (!mint && !isExactAta) continue;
+        if (mint && mint !== expectedMint) continue;
+
+
+        //const destPk = new PublicKey(destination);
+
+        // Prefer exact ATA match (most robust)
+        if (!destPk.equals(expectedAta)) {
+            // Optional fallback: verify destination is owned by merchant wallet
+            // (fetching parsed account owner)
+            const destInfo = await connection.getParsedAccountInfo(destPk, finality);
+            const ownerFromParsed =
+                (destInfo.value?.data as ParsedAccountData | null)?.parsed?.info?.owner;
+            const ownerEq = ownerFromParsed && new PublicKey(ownerFromParsed).equals(merchant);
+            console.log('… destination != expected ATA. Owner check:', { ownerFromParsed, ownerEq });
+            if (!ownerEq) continue; // not merchant-owned, reject this ix
+        }
+
+        if (rawAmount < expectedAmount) {
+            console.warn('⛔ Amount too small:', rawAmount.toString(), '<', expectedAmount.toString());
+            continue;
+        }
+
+        console.log('✅ Matching transfer found. Verification OK.');
+        return true;
+    }
+
+    console.warn('⛔ No matching transfer (mint/recipient/amount) found among spl-token ixs');
+
+    console.warn('⛔ No matching transfer (mint/recipient/amount) found among spl-token ixs');
+
+    // ---- Fallback: verify by token balance delta on the recipient ATA ----
+    try {
+        // 1) Build accountKeys array (base58) to index into token balance entries
+        const accountKeys: string[] =
+            // Parsed tx has objects with {pubkey: string}
+            (tx.transaction.message.accountKeys as (string | ParsedAccountKey)[]).map((k) =>
+                typeof k === 'string' ? k : k.pubkey.toBase58()
+            );
+
+        // 2) Find the expected ATA index in the message
+        const ataIndex = accountKeys.findIndex((k) => k === expectedAta.toBase58());
+        if (ataIndex === -1) {
+            console.warn('⚠️ Expected ATA not present in message accountKeys, cannot delta-check');
+            return false;
+        }
+
+        // 3) Pull pre/post token balance rows for that index & mint
+        const pre = (tx.meta?.preTokenBalances || []).find(
+            (b) => b.accountIndex === ataIndex && b.mint === expectedMint
+        );
+        const post = (tx.meta?.postTokenBalances || []).find(
+            (b) => b.accountIndex === ataIndex && b.mint === expectedMint
+        );
+
+        // If the ATA was created in this tx, there may be no 'pre' record.
+        const preAmount = pre?.uiTokenAmount?.amount
+            ? BigInt(pre.uiTokenAmount.amount)
+            : BigInt(0);
+        const postAmount = post?.uiTokenAmount?.amount
+            ? BigInt(post.uiTokenAmount.amount)
+            : BigInt(0);
+
+        const delta = postAmount - preAmount;
+
+        console.log('🧮 Balance-delta fallback:', {
+            expectedAta: expectedAta.toBase58(),
+            expectedMint,
+            preAmount: preAmount.toString(),
+            postAmount: postAmount.toString(),
+            delta: delta.toString(),
+            expectedAmount: expectedAmount.toString(),
+        });
+
+        if (delta >= expectedAmount) {
+            console.log('✅ Balance delta meets or exceeds expected amount. Verification OK.');
+            return true;
+        }
+
+        console.warn('⛔ Balance delta too small:', delta.toString(), '<', expectedAmount.toString());
+        return false;
+    } catch (e) {
+        console.warn('⚠️ Balance-delta fallback failed:', e);
+        return false;
+    }
+}
+
+
+
+// helper to convert Commitment → Finality
+function toFinality(commitment: Commitment): Finality {
+    switch (commitment) {
+        // legacy/alias commitments that should be treated as "confirmed"
+        case 'processed':
+        case 'recent':
+        case 'single':
+        case 'singleGossip':
+        case 'confirmed':
+            return 'confirmed';
+        // commitments that map to "finalized"
+        case 'finalized':
+        case 'root':
+        case 'max':
+            return 'finalized';
+        default:
+            return 'confirmed';
     }
 }
