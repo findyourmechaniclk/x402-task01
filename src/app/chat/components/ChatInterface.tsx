@@ -68,25 +68,47 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
         }
     }, [chatId, address]);
 
-    // Check for pending prompt from navigation
+    // Check for pending prompt from navigation OR pending message
     useEffect(() => {
+        if (!hasCheckedPendingPrompt.current && chatId && connected && address) {
+            const pendingMessage = sessionStorage.getItem('pendingMessage');
+            const pendingModel = sessionStorage.getItem('pendingModel');
+
+            if (pendingMessage && currentConversation) {
+                console.log('Found pending message for chat:', chatId, pendingMessage);
+                hasCheckedPendingPrompt.current = true;
+
+                sessionStorage.removeItem('pendingMessage');
+                if (pendingModel) {
+                    setSelectedModel(pendingModel);
+                    sessionStorage.removeItem('pendingModel');
+                }
+
+                // Process the pending message after a small delay to ensure everything is loaded
+                setTimeout(() => {
+                    processMessage(pendingMessage, currentConversation);
+                }, 100);
+            }
+        }
+
+        // Also handle pending prompts from homepage
         if (!hasCheckedPendingPrompt.current) {
-            hasCheckedPendingPrompt.current = true;
             const pendingPrompt = sessionStorage.getItem('pendingPrompt');
 
             if (pendingPrompt) {
                 console.log('Found pending prompt:', pendingPrompt);
+                hasCheckedPendingPrompt.current = true;
                 sessionStorage.removeItem('pendingPrompt');
                 sessionStorage.removeItem('selectedModel');
                 shouldAutoSubmit.current = true;
                 setInput(pendingPrompt);
             }
         }
-    }, []);
+    }, [chatId, currentConversation, connected, address]);
 
-    // Auto-submit pending prompt
+    // Auto-submit pending prompt (but not pending messages)
     useEffect(() => {
-        if (shouldAutoSubmit.current && input.trim() && connected) {
+        if (shouldAutoSubmit.current && input.trim() && connected && !sessionStorage.getItem('pendingMessage')) {
             shouldAutoSubmit.current = false;
             setTimeout(handleSend, 500);
         }
@@ -177,11 +199,8 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
         setCurrentConversation(newConv);
         setIsNewChat(false);
 
-        // Navigate to the timestamped URL
-        router.replace(`/chat/${timestampId}`);
-
-        // Reload conversations to update sidebar
-        loadConversations();
+        // Navigate to the timestamped URL immediately
+        router.push(`/chat/${timestampId}`);
 
         console.log('Created new conversation with timestamp ID:', timestampId);
         return newConv;
@@ -231,14 +250,29 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
 
         const userMessage = input.trim();
         setInput('');
-        setLoading(true);
         clearError();
 
-        // Create conversation if this is a new chat
-        let conversation = currentConversation;
-        if (isNewChat || !conversation) {
-            conversation = createNewChatFromMessage(userMessage);
+        try {
+            // Create conversation first if this is a new chat
+            let conversation = currentConversation;
+            if (isNewChat || !conversation) {
+                conversation = createNewChatFromMessage(userMessage);
+                // Store the message in sessionStorage to process after navigation
+                sessionStorage.setItem('pendingMessage', userMessage);
+                sessionStorage.setItem('pendingModel', selectedModel);
+                return; // Exit early, let the navigation handle the rest
+            }
+
+            // Process message for existing conversation
+            await processMessage(userMessage, conversation);
+        } catch (err) {
+            console.error('❌ Chat request error:', err);
+            setLoading(false);
         }
+    };
+
+    const processMessage = async (userMessage: string, conversation: Conversation) => {
+        setLoading(true);
 
         // Add user message
         const userMsg: Message = {
@@ -264,7 +298,7 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
 
             console.log('🚀 Starting chat request for:', userMessage.substring(0, 50));
 
-            // Always check if payment is required first
+            // Check if payment is required
             const paymentData = await checkPaymentRequired('/api/chat', {
                 model: selectedModel,
                 message: userMessage
