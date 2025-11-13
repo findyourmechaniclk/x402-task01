@@ -85,8 +85,8 @@ export const UI_CONFIG = {
 export const STORAGE_KEYS = {
     WALLET_CONNECTED: 'walletConnected',
     WALLET_ADDRESS: 'walletAddress',
-    CONVERSATIONS: 'conversations',
-    CURRENT_CONVERSATION: 'currentConversationId',
+    CONVERSATIONS: 'x402_conversations',
+    CURRENT_CONVERSATION: 'x402_current_conversation',
     THEME: 'theme',
     PREFERRED_MODEL: 'preferredModel',
 } as const;

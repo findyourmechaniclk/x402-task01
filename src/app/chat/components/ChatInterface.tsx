@@ -20,7 +20,8 @@ import {
     setCurrentConversationId,
     generateMessageId,
     clearAllConversations,
-    getConversation
+    getConversation,
+    getMessages
 } from '@/lib/storage/localStorage';
 
 interface ChatInterfaceProps {
@@ -122,6 +123,16 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [currentConversation?.messages]);
 
+    // Load specific conversation if chatId is provided
+    useEffect(() => {
+        if (chatId && address) {
+            loadSpecificConversation();
+        } else if (!chatId) {
+            setIsNewChat(true);
+            setCurrentConversation(null);
+        }
+    }, [chatId, address]);
+
     const loadSpecificConversation = () => {
         if (!chatId || !address) return;
 
@@ -132,7 +143,14 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
             return;
         }
 
-        setCurrentConversation(conversation);
+        // Load messages separately
+        const messages = getMessages(chatId);
+        const fullConversation = {
+            ...conversation,
+            messages
+        };
+
+        setCurrentConversation(fullConversation);
         setIsNewChat(false);
         setCurrentConversationId(chatId);
     };
