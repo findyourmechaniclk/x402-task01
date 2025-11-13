@@ -402,6 +402,67 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
         }
     };
 
+    const renderMessageBubble = (msg: Message) => (
+        <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[70%] ${msg.role === 'user' ? 'order-2' : 'order-1'}`}>
+                {/* Message bubble */}
+                <div
+                    className={`rounded-2xl px-4 py-3 ${msg.role === 'user'
+                        ? 'bg-gradient-to-r from-green-600 to-green-700 text-white'
+                        : 'bg-white/5 border border-white/10 text-gray-300'
+                        }`}
+                >
+                    <div className="prose prose-invert prose-sm max-w-none break-words whitespace-normal">
+                        <ReactMarkdown
+                            components={{
+                                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                code: ({ children, className }) =>
+                                    className ? (
+                                        <code className="bg-black/20 px-2 py-1 rounded text-sm font-mono">
+                                            {children}
+                                        </code>
+                                    ) : (
+                                        <code className="bg-black/20 px-1 rounded font-mono">{children}</code>
+                                    ),
+                                pre: ({ children }) => (
+                                    <pre className="bg-black/30 p-3 rounded-lg overflow-x-auto text-sm font-mono border border-gray-600">
+                                        {children}
+                                    </pre>
+                                ),
+                                h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                                h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                                h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                                ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                                ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                                blockquote: ({ children }) => (
+                                    <blockquote className="border-l-4 border-gray-600 pl-4 italic">
+                                        {children}
+                                    </blockquote>
+                                ),
+                            }}
+                        >
+                            {msg.content}
+                        </ReactMarkdown>
+                    </div>
+                </div>
+
+                {/* Message metadata */}
+                <div
+                    className={`flex items-center gap-2 mt-1 text-xs text-gray-500 ${msg.role === 'user' ? 'justify-end' : 'justify-start'
+                        }`}
+                >
+                    <span>{msg.timestamp.toLocaleTimeString()}</span>
+                    {msg.cost > 0 && (
+                        <span className="bg-gray-800 px-2 py-0.5 rounded">
+                            ${msg.cost.toFixed(4)}
+                        </span>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+
+
     // Calculate dynamic cost estimation based on current input
     const selectedModelConfig = models.find(m => m.id === selectedModel);
     const estimatedCost = selectedModelConfig && input.length > 0
@@ -626,53 +687,7 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
                                     </div>
                                 )}
 
-                                {currentConversation?.messages.map(msg => (
-                                    <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[70%] ${msg.role === 'user' ? 'order-2' : 'order-1'}`}>
-                                            {/* Message bubble */}
-                                            <div className={`rounded-2xl px-4 py-3 ${msg.role === 'user'
-                                                ? 'bg-gradient-to-r from-green-600 to-green-700 text-white'
-                                                : 'bg-white/5 border border-white/10 text-gray-300'
-                                                }`}>
-                                                <div className="prose prose-invert prose-sm max-w-none break-words whitespace-pre-wrap">
-                                                    <ReactMarkdown
-                                                        components={{
-                                                            p: ({ children }) => <p className="mb-2 last:mb-0 ">{children}</p>,
-                                                            code: ({ children, className }) =>
-                                                                className ? (
-                                                                    <code className="bg-black/20 px-2 py-1 rounded text-sm font-mono">{children}</code>
-                                                                ) : (
-                                                                    <code className="bg-black/20 px-1 rounded font-mono">{children}</code>
-                                                                ),
-                                                            pre: ({ children }) => (
-                                                                <pre className="bg-black/30 p-3 rounded-lg overflow-x-auto text-sm font-mono border border-gray-600">{children}</pre>
-                                                            ),
-                                                            h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
-                                                            h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
-                                                            h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
-                                                            ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
-                                                            ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
-                                                            blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-600 pl-4 italic">{children}</blockquote>,
-                                                        }}
-                                                    >
-                                                        {msg.content}
-                                                    </ReactMarkdown>
-                                                </div>
-                                            </div>
-
-                                            {/* Message metadata */}
-                                            <div className={`flex items-center gap-2 mt-1 text-xs text-gray-500 ${msg.role === 'user' ? 'justify-end' : 'justify-start'
-                                                }`}>
-                                                <span>{msg.timestamp.toLocaleTimeString()}</span>
-                                                {msg.cost > 0 && (
-                                                    <span className="bg-gray-800 px-2 py-0.5 rounded">
-                                                        ${msg.cost.toFixed(4)}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
+                                {currentConversation?.messages.map(msg => renderMessageBubble(msg))}
 
                                 {loading && (
                                     <div className="flex justify-start">
