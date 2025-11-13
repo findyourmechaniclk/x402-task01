@@ -237,10 +237,10 @@ export function getMessages(conversationId: string): Message[] {
     }
 
     try {
-        const parsed = JSON.parse(data);
+        const parsed: Message[] = JSON.parse(data) as Message[];
 
         // Convert date strings back to Date objects
-        parsed.forEach((msg: any) => {
+        parsed.forEach((msg) => {
             msg.timestamp = new Date(msg.timestamp);
         });
 
