@@ -269,7 +269,8 @@ export function createNewConversation(
     model: string,
     title?: string
 ): Conversation {
-    const id = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Use current timestamp as ID
+    const id = Date.now().toString();
 
     const conversation: Conversation = {
         id,
