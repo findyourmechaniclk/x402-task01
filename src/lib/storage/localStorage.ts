@@ -70,8 +70,7 @@ function safeRemoveItem(key: string): void {
 // ============================================
 
 /**
- * Read all conversations and restore Date instances for conversation and
- * message timestamps.
+ * Read conversation metadata only (no messages loaded)
  */
 export function getAllConversations(): Record<string, Conversation> {
     const data = safeGetItem(STORAGE_KEYS.CONVERSATIONS);
@@ -83,15 +82,12 @@ export function getAllConversations(): Record<string, Conversation> {
     try {
         const parsed = JSON.parse(data);
 
-        // Convert date strings back to Date objects
+        // Convert date strings back to Date objects and ensure empty messages array
         Object.values(parsed).forEach((conv: unknown) => {
             const conversation = conv as Conversation;
             conversation.createdAt = new Date(conversation.createdAt);
             conversation.updatedAt = new Date(conversation.updatedAt);
-
-            conversation.messages.forEach(msg => {
-                msg.timestamp = new Date(msg.timestamp);
-            });
+            conversation.messages = []; // Always empty in metadata
         });
 
         return parsed;
@@ -110,11 +106,18 @@ export function getConversation(id: string): Conversation | null {
 }
 
 /**
- * Upsert a conversation in storage and persist the full map.
+ * Save conversation metadata only (without messages)
  */
 export function saveConversation(conversation: Conversation): boolean {
     const conversations = getAllConversations();
-    conversations[conversation.id] = conversation;
+
+    // Save metadata without messages
+    const metadata = {
+        ...conversation,
+        messages: [] // Never store messages in metadata
+    };
+
+    conversations[conversation.id] = metadata;
 
     return safeSetItem(
         STORAGE_KEYS.CONVERSATIONS,
@@ -136,6 +139,16 @@ export function deleteConversation(id: string): boolean {
 }
 
 export function clearAllConversations(): void {
+    // Get all conversations to clear their message storage
+    const conversations = getAllConversations();
+
+    // Clear individual message stores
+    Object.keys(conversations).forEach(convId => {
+        const messagesKey = `${STORAGE_KEYS.CONVERSATIONS}_messages_${convId}`;
+        safeRemoveItem(messagesKey);
+    });
+
+    // Clear main conversation metadata
     safeRemoveItem(STORAGE_KEYS.CONVERSATIONS);
     safeRemoveItem(STORAGE_KEYS.CURRENT_CONVERSATION);
 }
@@ -145,26 +158,40 @@ export function clearAllConversations(): void {
 // ============================================
 
 /**
- * Append a message and update derived metadata (updatedAt, messageCount,
- * totalCost). Returns true on successful persistence.
+ * Add message to separate storage and update conversation metadata
  */
 export function addMessage(
     conversationId: string,
     message: Message
 ): boolean {
-    const conversation = getConversation(conversationId);
+    // Get existing messages for this conversation
+    const existingMessages = getMessages(conversationId);
+    existingMessages.push(message);
 
-    if (!conversation) {
-        console.error('Conversation not found:', conversationId);
+    // Save messages separately
+    const messagesKey = `${STORAGE_KEYS.CONVERSATIONS}_messages_${conversationId}`;
+    const messagesSaved = safeSetItem(messagesKey, JSON.stringify(existingMessages));
+
+    if (!messagesSaved) {
         return false;
     }
 
-    conversation.messages.push(message);
-    conversation.updatedAt = new Date();
-    conversation.messageCount = conversation.messages.length;
-    conversation.totalCost += message.cost;
+    // Update conversation metadata
+    const conversation = getConversation(conversationId);
+    if (conversation) {
+        conversation.updatedAt = new Date();
+        conversation.messageCount = existingMessages.length;
+        conversation.totalCost += message.cost;
 
-    return saveConversation(conversation);
+        // Update title from first user message if still "New Conversation"
+        if (conversation.title === 'New Conversation' && message.role === 'user') {
+            conversation.title = message.content.slice(0, 50) + (message.content.length > 50 ? '...' : '');
+        }
+
+        return saveConversation(conversation);
+    }
+
+    return true;
 }
 
 /**
@@ -202,8 +229,26 @@ export function updateMessage(
 }
 
 export function getMessages(conversationId: string): Message[] {
-    const conversation = getConversation(conversationId);
-    return conversation?.messages || [];
+    const messagesKey = `${STORAGE_KEYS.CONVERSATIONS}_messages_${conversationId}`;
+    const data = safeGetItem(messagesKey);
+
+    if (!data) {
+        return [];
+    }
+
+    try {
+        const parsed = JSON.parse(data);
+
+        // Convert date strings back to Date objects
+        parsed.forEach((msg: any) => {
+            msg.timestamp = new Date(msg.timestamp);
+        });
+
+        return parsed;
+    } catch (error) {
+        console.error('Error parsing messages for conversation:', conversationId, error);
+        return [];
+    }
 }
 
 // ============================================
@@ -269,7 +314,8 @@ export function createNewConversation(
     model: string,
     title?: string
 ): Conversation {
-    const id = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Use current timestamp as ID
+    const id = Date.now().toString();
 
     const conversation: Conversation = {
         id,
@@ -323,16 +369,22 @@ export function searchConversations(query: string): Conversation[] {
 }
 
 /**
- * Filter conversations by wallet address.
+ * Get conversations for a wallet and populate with messages
  */
-export function getConversationsByWallet(
-    walletAddress: string
-): Conversation[] {
+export function getConversationsByWallet(walletAddress: string): Conversation[] {
     const conversations = Object.values(getAllConversations());
 
-    return conversations.filter(
-        conv => conv.walletAddress === walletAddress
-    );
+    return conversations
+        .filter(conv => conv.walletAddress === walletAddress)
+        .map(conv => {
+            // Load messages for each conversation
+            const messages = getMessages(conv.id);
+            return {
+                ...conv,
+                messages
+            };
+        })
+        .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 }
 
 /**
