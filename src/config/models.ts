@@ -84,7 +84,7 @@ export const MODELS: ModelConfig[] = [
         id: 'gemini-2.0-flash',
         name: 'Gemini 2.0 Flash',
         provider: 'google',
-        version: '2.0-flash',
+        version: 'gemini-2.0-flash',
         description: 'Fast and efficient multimodal model',
         capabilities: ['text', 'vision', 'image'],
         pricing: {

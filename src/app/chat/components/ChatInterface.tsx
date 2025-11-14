@@ -1,6 +1,6 @@
 // src/app/chat/components/ChatInterface.tsx
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { useWallet } from '@/contexts/WalletContext';
@@ -37,6 +37,7 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
 
     const [models, setModels] = useState<ModelConfig[]>([]);
     const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
+    const [mode, setMode] = useState<'chat' | 'image'>('chat');
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
     const [input, setInput] = useState('');
@@ -87,7 +88,7 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
 
                 // Process the pending message after a small delay to ensure everything is loaded
                 setTimeout(() => {
-                    processMessage(pendingMessage, currentConversation);
+                    processTextMessage(pendingMessage, currentConversation);
                 }, 100);
             }
         }
@@ -132,6 +133,26 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
             setCurrentConversation(null);
         }
     }, [chatId, address]);
+
+    const filteredModels = useMemo(
+        () =>
+            models.filter(m =>
+                mode === 'chat'
+                    ? m.capabilities.includes('text')
+                    : m.capabilities.includes('image')
+            ),
+        [models, mode]
+    );
+
+    // If you switch modes and the current selectedModel isn't valid anymore,
+    // snap it to the first valid model (same UX pattern as you already use via defaults).
+    useEffect(() => {
+        if (!filteredModels.length) return;
+        if (!filteredModels.find(m => m.id === selectedModel)) {
+            setSelectedModel(filteredModels[0].id);
+        }
+    }, [filteredModels, selectedModel, setSelectedModel]);
+
 
     const loadSpecificConversation = () => {
         if (!chatId || !address) return;
@@ -278,18 +299,23 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
                 // Store the message in sessionStorage to process after navigation
                 sessionStorage.setItem('pendingMessage', userMessage);
                 sessionStorage.setItem('pendingModel', selectedModel);
+                sessionStorage.setItem('pendingMode', mode);
                 return; // Exit early, let the navigation handle the rest
             }
 
             // Process message for existing conversation
-            await processMessage(userMessage, conversation);
+            if (mode === 'chat') {
+                await processTextMessage(userMessage, conversation);
+            } else {
+                await processImageMessage(userMessage, conversation);
+            }
         } catch (err) {
             console.error('❌ Chat request error:', err);
             setLoading(false);
         }
     };
 
-    const processMessage = async (userMessage: string, conversation: Conversation) => {
+    const processTextMessage = async (userMessage: string, conversation: Conversation) => {
         setLoading(true);
 
         // Add user message
@@ -297,6 +323,7 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
             id: generateMessageId(),
             conversationId: conversation.id,
             role: 'user',
+            type: 'text',
             content: userMessage,
             model: selectedModel,
             cost: 0,
@@ -335,6 +362,7 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
                         id: generateMessageId(),
                         conversationId: conversation.id,
                         role: 'assistant',
+                        type: 'text',
                         content: result.response,
                         model: selectedModel,
                         cost: result.cost?.amount || paymentData.amount,
@@ -402,6 +430,110 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
         }
     };
 
+    const processImageMessage = async (prompt: string, conversation: Conversation) => {
+        setLoading(true);
+
+        // Add user message to conversation (same pattern as text)
+        const userMsg: Message = {
+            id: generateMessageId(),
+            conversationId: conversation.id,
+            role: 'user',
+            type: 'text',
+            content: prompt,
+            model: selectedModel,
+            cost: 0,
+            timestamp: new Date(),
+        };
+
+        const msgSuccess = addMessage(conversation.id, userMsg);
+        if (!msgSuccess) {
+            setLoading(false);
+            return;
+        }
+
+        const baseConv = {
+            ...conversation,
+            messages: [...conversation.messages, userMsg],
+            updatedAt: new Date(),
+            messageCount: conversation.messageCount + 1,
+        };
+        setCurrentConversation(baseConv);
+
+        try {
+            // (Optional) use X402 for images too, same pattern as /api/chat
+            // const paymentData = await checkPaymentRequired('/api/image', {
+            //   model: selectedModel,
+            //   prompt,
+            // });
+            // ...processPayment like you do for chat...
+
+            const res = await fetch('/api/image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: selectedModel,
+                    prompt,
+                }),
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error?.message || 'Image generation failed');
+            }
+
+            const imageUrl: string = data.image;
+
+            const assistantMsg: Message = {
+                id: generateMessageId(),
+                conversationId: conversation.id,
+                role: 'assistant',
+                type: 'image',
+                imageUrl: imageUrl,
+                // markdown image – works with your ReactMarkdown renderer
+                content: `Generated Image`,
+                model: data.model || selectedModel,
+                cost: data.cost?.amount ?? baseConv.totalCost ?? 0,
+                timestamp: new Date(),
+            };
+
+            addMessage(conversation.id, assistantMsg);
+
+            const finalConv: Conversation = {
+                ...baseConv,
+                messages: [...baseConv.messages, assistantMsg],
+                updatedAt: new Date(),
+                totalCost: (baseConv.totalCost || 0) + (assistantMsg.cost || 0),
+                messageCount: baseConv.messageCount + 1,
+            };
+
+            setCurrentConversation(finalConv);
+            loadConversations();
+        } catch (err) {
+            console.error('Image request error:', err);
+            const errorMsg: Message = {
+                id: generateMessageId(),
+                conversationId: conversation.id,
+                role: 'assistant',
+                content: `❌ **Image error:** ${err instanceof Error ? err.message : 'Image request failed'
+                    }`,
+                model: selectedModel,
+                cost: 0,
+                timestamp: new Date(),
+            };
+            addMessage(conversation.id, errorMsg);
+
+            setCurrentConversation({
+                ...baseConv,
+                messages: [...baseConv.messages, errorMsg],
+                updatedAt: new Date(),
+                messageCount: baseConv.messageCount + 1,
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
     const renderMessageBubble = (msg: Message) => (
         <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[70%] ${msg.role === 'user' ? 'order-2' : 'order-1'}`}>
@@ -413,36 +545,46 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
                         }`}
                 >
                     <div className="prose prose-invert prose-sm max-w-none break-words whitespace-normal">
-                        <ReactMarkdown
-                            components={{
-                                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                                code: ({ children, className }) =>
-                                    className ? (
-                                        <code className="bg-black/20 px-2 py-1 rounded text-sm font-mono">
+                        {msg.type === 'image' && msg.imageUrl ? (
+                            <div className="mt-2">
+                                <img
+                                    src={msg.imageUrl}
+                                    alt={msg.content || 'Generated image'}
+                                    className="max-w-xl w-full rounded-lg border border-gray-700"
+                                />
+                            </div>
+                        ) : (
+                            <ReactMarkdown
+                                components={{
+                                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                    code: ({ children, className }) =>
+                                        className ? (
+                                            <code className="bg-black/20 px-2 py-1 rounded text-sm font-mono">
+                                                {children}
+                                            </code>
+                                        ) : (
+                                            <code className="bg-black/20 px-1 rounded font-mono">{children}</code>
+                                        ),
+                                    pre: ({ children }) => (
+                                        <pre className="bg-black/30 p-3 rounded-lg overflow-x-auto text-sm font-mono border border-gray-600">
                                             {children}
-                                        </code>
-                                    ) : (
-                                        <code className="bg-black/20 px-1 rounded font-mono">{children}</code>
+                                        </pre>
                                     ),
-                                pre: ({ children }) => (
-                                    <pre className="bg-black/30 p-3 rounded-lg overflow-x-auto text-sm font-mono border border-gray-600">
-                                        {children}
-                                    </pre>
-                                ),
-                                h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
-                                h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
-                                h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
-                                ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
-                                ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
-                                blockquote: ({ children }) => (
-                                    <blockquote className="border-l-4 border-gray-600 pl-4 italic">
-                                        {children}
-                                    </blockquote>
-                                ),
-                            }}
-                        >
-                            {msg.content}
-                        </ReactMarkdown>
+                                    h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                                    h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                                    h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                                    ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                                    ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                                    blockquote: ({ children }) => (
+                                        <blockquote className="border-l-4 border-gray-600 pl-4 italic">
+                                            {children}
+                                        </blockquote>
+                                    ),
+                                }}
+                            >
+                                {msg.content}
+                            </ReactMarkdown>
+                        )}
                     </div>
                 </div>
 
@@ -595,12 +737,18 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
                 <div className="sticky top-0 z-30 bg-black/50 backdrop-blur-lg border-b border-gray-800 pt-2">
                     <div className="flex items-center justify-between px-10 py-3">
                         <div className="flex gap-2">
-                            <button className="flex items-center gap-2 px-4 py-2 bg-emerald-900/30 rounded-lg border border-emerald-500/50 text-emerald-400">
+                            <button className={`flex items-center gap-2 px-4 py-2 rounded-lg border  
+                            ${mode === 'chat' ? 'bg-emerald-900/30 border-emerald-500/50 text-emerald-400' : 'border-slate-700/50 text-gray-400 hover:border-gray-600 bg-emerald-900/10'}`}
+                                onClick={() => setMode('chat')} type='button'
+                            >
                                 <MessageSquare className="w-4 h-4" />
                                 Chat
                                 <span className="text-xs">${estimatedCost.toFixed(4)}</span>
                             </button>
-                            <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-700 text-gray-400 hover:border-gray-600" disabled>
+                            <button className={`flex items-center gap-2 px-4 py-2 rounded-lg border  
+                            ${mode === 'image' ? 'bg-emerald-900/30 border-emerald-500/50 text-emerald-400' : 'border-slate-700/50 text-gray-400 hover:border-gray-600 bg-emerald-900/10'}`}
+                                onClick={() => setMode('image')} type='button'
+                            >
                                 <ImageIcon className="w-4 h-4" />
                                 Image
                                 <span className="text-xs">$0.10</span>
@@ -613,14 +761,16 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
                             className="px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-sm focus:outline-none focus:border-emerald-500"
                             disabled={loading || isPaying}
                         >
-                            {models.length > 0 ? (
-                                models.map(model => (
+                            {filteredModels.length > 0 ? (
+                                filteredModels.map(model => (
                                     <option key={model.id} value={model.id}>
                                         {model.name} (${model.pricing.baseRequest})
                                     </option>
                                 ))
                             ) : (
-                                <option value="">Loading models...</option>
+                                <option value="">
+                                    {mode === 'chat' ? 'No chat models available' : 'No image models available'}
+                                </option>
                             )}
                         </select>
                     </div>
@@ -665,7 +815,7 @@ export default function ChatInterface({ chatId }: ChatInterfaceProps) {
 
                 {/* Messages - Scrollable area */}
                 <div className="flex-1 px-10 py-6 bg-gray-900/40 backdrop-blur-md relative z-10">
-                    <div className="space-y-4">
+                    <div className="space-y-4 h-full">
                         {!connected ? (
                             <div className="flex items-center justify-center h-full text-gray-500">
                                 <div className="text-center">

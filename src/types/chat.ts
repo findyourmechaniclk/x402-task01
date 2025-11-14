@@ -4,6 +4,7 @@
  */
 
 export type MessageRole = 'user' | 'assistant' | 'system';
+export type MessageType = 'text' | 'image';
 
 export interface Message {
     id: string;
@@ -18,6 +19,8 @@ export interface Message {
     cost: number;
     timestamp: Date;
     metadata?: Record<string, unknown>;
+    type?: MessageType;      // default to 'text'
+    imageUrl?: string;       // used when type === 'image'
 }
 
 export interface Conversation {
