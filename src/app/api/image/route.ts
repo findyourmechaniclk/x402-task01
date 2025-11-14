@@ -94,6 +94,15 @@ async function callOpenAIImage(model: string, prompt: string): Promise<string> {
     return `data:image/png;base64,${b64}`;
 }
 
+type GeminiInlineData = {
+    mimeType?: string;
+    data?: string;
+};
+
+type GeminiPart = {
+    inlineData?: GeminiInlineData;
+};
+
 // Gemini image (Gemini 2.0 Flash with image capability)
 async function callGeminiImage(model: string, prompt: string): Promise<string> {
     const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
@@ -121,9 +130,9 @@ async function callGeminiImage(model: string, prompt: string): Promise<string> {
 
     const candidates = data.candidates ?? [];
     const first = candidates[0];
-    const parts = first?.content?.parts ?? [];
+    const parts = (first?.content?.parts ?? []) as GeminiPart[];
     const imgPart = parts.find(
-        (p: any) => p.inlineData && p.inlineData.mimeType?.startsWith('image/'),
+        (p) => p.inlineData?.mimeType?.startsWith('image/'),
     );
     if (!imgPart?.inlineData?.data) throw new Error('No image data returned from Gemini');
 
