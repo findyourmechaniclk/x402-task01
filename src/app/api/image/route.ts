@@ -1,6 +1,8 @@
 // src/app/api/image/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getModelById } from '@/config/models';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import crypto from 'crypto';
 
 export const runtime = 'nodejs';
 
@@ -90,8 +92,15 @@ async function callOpenAIImage(model: string, prompt: string): Promise<string> {
     }
 
     const b64 = data.data?.[0]?.b64_json;
-    if (!b64) throw new Error('No image returned from OpenAI');
-    return `data:image/png;base64,${b64}`;
+
+    if (!b64) {
+        console.error('No image data in OpenAI response:', data);
+        throw new Error('No image returned from OpenAI');
+    }
+
+    // Upload to R2 and return the public URL
+    const imageUrl = await uploadImageToR2(b64, 'image/png');
+    return imageUrl;
 }
 
 type GeminiInlineData = {
@@ -138,5 +147,49 @@ async function callGeminiImage(model: string, prompt: string): Promise<string> {
 
     const mimeType = imgPart.inlineData.mimeType || 'image/png';
     const b64 = imgPart.inlineData.data;
-    return `data:${mimeType};base64,${b64}`;
+
+    // Upload to R2 and return the public URL
+    const imageUrl = await uploadImageToR2(b64, mimeType);
+    return imageUrl;
+}
+
+const r2Client = new S3Client({
+    region: 'auto',
+    endpoint: `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: {
+        accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || '',
+        secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || '',
+    },
+});
+
+// Upload raw base64 (no data: prefix) and return a public URL
+async function uploadImageToR2(base64: string, contentType: string): Promise<string> {
+    const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+    if (!bucket) {
+        throw new Error('CLOUDFLARE_R2_BUCKET_NAME is not set');
+    }
+
+    const random = crypto.randomBytes(5).toString('hex');
+    const ext = contentType === 'image/jpeg' ? 'jpg' : 'png';
+    const key = `images/${Date.now()}-${random}.${ext}`;
+
+    const body = Buffer.from(base64, 'base64');
+
+    await r2Client.send(
+        new PutObjectCommand({
+            Bucket: bucket,
+            Key: key,
+            Body: body,
+            ContentType: contentType,
+        }),
+    );
+
+    const baseUrl = process.env.CLOUDFLARE_R2_PUBLIC_BASE_URL;
+    if (!baseUrl) {
+        // Fallback if you use Cloudflare's default public endpoint pattern
+        // Adjust if needed:
+        return `https://${bucket}.${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`;
+    }
+
+    return `${baseUrl.replace(/\/$/, '')}/${key}`;
 }
