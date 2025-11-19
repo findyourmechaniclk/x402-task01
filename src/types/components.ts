@@ -1,4 +1,4 @@
-// types/components.ts
+// src/types/components.ts
 /**
  * Component Props type definitions
  */

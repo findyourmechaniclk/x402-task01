@@ -1,3 +1,8 @@
+// src/app/api/models/route.ts
+/**
+ * API Route: Get Available Models
+ * Returns a list of supported models with their configuration details
+ */
 import { NextResponse } from 'next/server';
 import { getAvailableModels } from '@/config/models';
 

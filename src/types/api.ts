@@ -1,4 +1,4 @@
-// types/api.ts
+// src/types/api.ts
 /**
  * API-related type definitions
  */

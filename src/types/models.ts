@@ -1,4 +1,4 @@
-// types/models.ts
+// src/types/models.ts
 /**
  * AI Model-related type definitions
  */

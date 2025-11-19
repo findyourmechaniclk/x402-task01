@@ -1,4 +1,4 @@
-// types/common.ts
+// src/types/common.ts
 /**
  * Common type definitions (Storage, Network, etc.)
  */

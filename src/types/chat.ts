@@ -1,4 +1,4 @@
-// types/chat.ts
+// src/types/chat.ts
 /**
  * Chat-related type definitions
  */

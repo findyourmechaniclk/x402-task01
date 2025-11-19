@@ -1,4 +1,4 @@
-// lib/wallet/phantom.ts
+// src/lib/wallet/phantom.ts
 /**
  * Phantom wallet utilities: provider detection, connection helpers,
  * transaction/message signing, event subscriptions, and display helpers.

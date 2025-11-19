@@ -1,6 +1,5 @@
-// src/app/config/models.ts
+// src/config/models.ts
 
-// config/models.ts
 /**
  * AI Model Configurations
  * Defines available models, pricing, and limits

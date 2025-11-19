@@ -1,4 +1,4 @@
-// types/payment.ts
+// src/types/payment.ts
 /**
  * Payment-related type definitions
  */

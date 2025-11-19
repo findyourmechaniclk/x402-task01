@@ -1,4 +1,4 @@
-// lib/wallet/solana.ts
+// src/lib/wallet/solana.ts
 /**
  * Solana blockchain interaction utilities
  * Handles connection to Solana network, balance queries, and transaction operations

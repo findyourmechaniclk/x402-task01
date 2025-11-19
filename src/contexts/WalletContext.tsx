@@ -1,6 +1,6 @@
 'use client';
 
-// contexts/WalletContext.tsx
+// src/contexts/WalletContext.tsx
 /**
  * Wallet Context Provider
  * Manages global wallet state using React Context API

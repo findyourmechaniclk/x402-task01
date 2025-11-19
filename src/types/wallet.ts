@@ -1,4 +1,4 @@
-// types/wallet.ts
+// src/types/wallet.ts
 /**
  * Wallet-related type definitions
  */

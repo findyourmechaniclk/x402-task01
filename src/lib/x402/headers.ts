@@ -1,4 +1,4 @@
-// lib/x402/headers.ts
+// src/lib/x402/headers.ts
 /**
  * X402 HTTP Header Utilities
  * Helper functions for parsing and formatting X402 protocol headers

@@ -1,4 +1,4 @@
-// config/constants.ts
+// src/config/constants.ts
 /**
  * Application Constants
  * Centralized configuration values

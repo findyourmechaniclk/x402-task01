@@ -1,6 +1,6 @@
 'use client';
 
-// hooks/usePayment.ts
+// src/hooks/usePayment.ts
 /**
  * Payment Hook for X402 Protocol
  * Handles payment challenges, signing, and verification
